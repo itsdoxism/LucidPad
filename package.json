@@ -1,0 +1,34 @@
+{
+  "name": "lucidpad",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "dist": "electron-builder",
+    "release": "electron-builder --publish always"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^26.4.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "build": {
+    "appId": "com.moroodol.lucidpad",
+    "productName": "LucidPad",
+    "win": {
+      "signAndEditExecutable": false,
+      "verifyUpdateCodeSignature": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "JustDream-LoL",
+        "repo": "LucidPad"
+      }
+    ]
+  }
+}

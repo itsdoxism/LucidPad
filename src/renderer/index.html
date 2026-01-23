@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LucidPad</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0f0f11;
+            --card-bg: #1e1e20;
+            --text-main: #e4e4e7;
+            --text-muted: #a1a1aa;
+            
+            /* Blue Theme */
+            --accent-primary: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.25);
+            --highlight-bg: #1e293b;
+            --highlight-text: #60a5fa;
+
+            --border-color: #27272a;
+            --font-ui: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --anim-fast: 140ms;
+            --anim-mid: 200ms;
+            --anim-slow: 260ms;
+            --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+            --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app-window {
+            width: 100%;
+            height: 100vh;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .editor-shell {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .editor-shell.split-view {
+            flex-direction: row;
+        }
+
+        /* --- Header Section --- */
+        header {
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-color);
+        }
+
+        /* Top Menu Bar (File, Edit...) */
+        .menubar {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px 0 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            gap: 16px;
+        }
+
+        .app-logo {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            object-fit: contain;
+            margin-right: 8px;
+        }
+
+        .menu-item {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard);
+            position: relative;
+            user-select: none;
+        }
+        .menu-item:hover {
+            background-color: #27272a;
+            color: #fff;
+        }
+        .menu-item.open {
+            background-color: #27272a;
+            color: #fff;
+        }
+        .menu-item.focused {
+            background-color: #27272a;
+            color: #fff;
+        }
+        .menu-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .menu-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            min-width: 180px;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 8px;
+            padding: 6px 0;
+            margin-top: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            opacity: 0;
+            transform: translateY(-6px) scale(0.98);
+            filter: blur(6px);
+            transform-origin: top left;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard),
+                        visibility 0s linear var(--anim-fast);
+            z-index: 200;
+        }
+        .menu-item.open .menu-dropdown {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+            pointer-events: auto;
+            visibility: visible;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard);
+        }
+        .menu-dropdown button {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            text-align: left;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .menu-dropdown button:hover,
+        .menu-dropdown button:focus {
+            background: #27272a;
+            color: #fff;
+            outline: none;
+        }
+        .menu-shortcut {
+            color: #a1a1aa;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+        }
+
+        /* Second Row: Tabs & Toolbar */
+        .header-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 16px;
+        }
+
+        .tabs-container {
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            flex: 1;
+            margin-right: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            /* Hide scrollbar */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .tabs::-webkit-scrollbar { display: none; }
+
+        .tab {
+            padding: 6px 10px;
+            border-radius: 6px 6px 0 0; /* Tab shape */
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard),
+                        border-color var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        opacity var(--anim-fast) var(--ease-standard);
+            user-select: none;
+            color: var(--text-muted);
+            border: 1px solid transparent;
+            min-width: 120px;
+            justify-content: space-between;
+            position: relative;
+        }
+        .tab::after {
+            content: "";
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: -1px;
+            height: 2px;
+            background: var(--accent-primary);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform var(--anim-fast) var(--ease-standard);
+        }
+        .tab.tab-enter {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        .tab.tab-exit {
+            opacity: 0;
+            transform: scale(0.96);
+        }
+
+        .tab:hover {
+            background-color: #27272a;
+        }
+
+        .tab.active {
+            background-color: #1f2937;
+            color: var(--accent-primary);
+            border-top: 1px solid #374151;
+            border-left: 1px solid #374151;
+            border-right: 1px solid #374151;
+        }
+        .tab.active::after { transform: scaleX(1); }
+
+        .unsaved-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-muted);
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .tab.active .unsaved-dot {
+            background-color: var(--accent-primary);
+        }
+
+        .tab-close {
+            opacity: 0;
+            font-size: 1rem;
+            border-radius: 4px;
+            padding: 0 4px;
+            transition: opacity var(--anim-fast) var(--ease-standard), color var(--anim-fast) var(--ease-standard), background-color var(--anim-fast) var(--ease-standard);
+        }
+        .tab:hover .tab-close { opacity: 1; }
+        .tab-close:hover { background: #3f3f46; color: #fff; }
+
+        .header-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
+            font-size: 1rem;
+        }
+        .icon-btn:active { transform: scale(0.96); }
+
+        .icon-btn:hover {
+            background: #27272a;
+            color: #fff;
+        }
+
+        /* --- Editor Content --- */
+        .editor-area {
+            flex: 1;
+            padding: 12px 16px;
+            padding-bottom: 64px;
+            overflow-y: auto;
+            line-height: 1.7;
+            outline: none;
+            transition: width var(--anim-mid) var(--ease-standard),
+                        padding var(--anim-mid) var(--ease-standard);
+        }
+        .editor-area.no-wrap { white-space: pre; }
+        .editor-area.preview-mode { cursor: default; }
+        .zen-mode header,
+        .zen-mode footer,
+        .zen-mode .floating-toolbar,
+        .zen-mode .find-widget {
+            display: none;
+        }
+        .zen-mode .preview-panel {
+            display: none;
+        }
+        .zen-mode .editor-area {
+            padding: 60px 18% 60px 18%;
+        }
+
+        .editor-area::-webkit-scrollbar { width: 8px; }
+        .editor-area::-webkit-scrollbar-track { background: transparent; }
+        .editor-area::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 4px; }
+
+        h1, h2, h3, h4, h5, h6 { margin: 0 0 16px 0; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+        h1 { font-size: 2rem; }
+        h2 { font-size: 1.7rem; }
+        h3 { font-size: 1.4rem; }
+        h4 { font-size: 1.2rem; }
+        h5 { font-size: 1.05rem; }
+        h6 { font-size: 0.95rem; }
+        p { margin-bottom: 16px; font-size: 1.05rem; color: #d4d4d8; }
+
+
+        .highlight-badge { background-color: var(--highlight-bg); color: var(--highlight-text); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.9em; }
+        .version-badge { background-color: #3f2c30; color: #fda4af; padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.9em; }
+        .link-text { text-decoration: underline; text-decoration-color: #52525b; text-underline-offset: 4px; color: inherit; cursor: pointer; }
+        .link-text:hover { color: var(--accent-primary); text-decoration-color: var(--accent-primary); }
+
+        ol { list-style: none; counter-reset: my-counter; padding-left: 10px; }
+        ol li { counter-increment: my-counter; margin-bottom: 16px; font-size: 1.05rem; display: flex; align-items: flex-start; }
+        ol li::before { content: counter(my-counter) "."; color: #71717a; font-weight: 500; margin-right: 16px; min-width: 20px; font-family: var(--font-mono); }
+
+        .preview-panel {
+            display: block;
+            width: 0;
+            border-left: 1px solid transparent;
+            background: #0f0f11;
+            overflow-y: auto;
+            padding: 18px 20px 80px 20px;
+            transition: width var(--anim-mid) var(--ease-standard),
+                        opacity var(--anim-mid) var(--ease-standard);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .editor-shell.split-view .preview-panel {
+            width: 50%;
+            opacity: 1;
+            pointer-events: auto;
+            border-left-color: var(--border-color);
+        }
+        .editor-shell.split-view .editor-area {
+            width: 50%;
+            padding-bottom: 80px;
+        }
+        .preview-panel .preview-content {
+            max-width: 780px;
+        }
+        .preview-panel h1,
+        .preview-panel h2,
+        .preview-panel h3,
+        .preview-panel h4,
+        .preview-panel h5,
+        .preview-panel h6 {
+            margin: 0 0 16px 0;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+        .preview-panel p { margin-bottom: 16px; font-size: 1.02rem; color: #d4d4d8; }
+        .preview-panel code {
+            font-family: var(--font-mono);
+            font-size: 0.9em;
+            background: #1f1f22;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .preview-panel pre {
+            background: #1f1f22;
+            padding: 12px 14px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .preview-panel .lp-code-block {
+            animation: codeBlockIn var(--anim-mid) var(--ease-standard);
+        }
+        .preview-panel blockquote {
+            border-left: 3px solid var(--accent-primary);
+            padding-left: 12px;
+            color: #cbd5f5;
+            margin-bottom: 16px;
+        }
+
+        /* --- Floating Format Bar --- */
+        .floating-toolbar {
+            position: absolute;
+            bottom: 60px; 
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 12px;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            z-index: 100;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
+        }
+        .floating-toolbar.is-floating {
+            position: fixed;
+            bottom: auto;
+        }
+        .floating-toolbar.reveal {
+            animation: toolbarIn var(--anim-mid) var(--ease-smooth);
+        }
+        .floating-toolbar.is-floating.reveal {
+            animation: toolbarInFloating var(--anim-mid) var(--ease-smooth);
+        }
+
+        .font-selector { background: transparent; color: #fff; padding: 6px 10px; border-radius: 6px; display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; min-width: 120px; justify-content: space-between; transition: background-color var(--anim-fast) var(--ease-standard), color var(--anim-fast) var(--ease-standard); }
+        .font-selector:hover { background: #27272a; }
+        .divider { width: 1px; height: 20px; background: #3f3f46; margin: 0 4px; }
+        
+        .tool-btn { background: transparent; border: none; color: #a1a1aa; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: background-color var(--anim-fast) var(--ease-standard), color var(--anim-fast) var(--ease-standard), transform var(--anim-fast) var(--ease-standard); }
+        .tool-btn:hover { background: #27272a; color: #fff; }
+        .tool-btn.active { color: var(--accent-primary); background: rgba(59, 130, 246, 0.1); }
+        .tool-btn.selected { background: #27272a; color: #fff; }
+        .tool-btn[data-tooltip],
+        .font-selector[data-tooltip] {
+            position: relative;
+        }
+        .tool-btn[data-tooltip]::after,
+        .font-selector[data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            color: #e4e4e7;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease;
+            z-index: 200;
+        }
+        .tool-btn[data-tooltip]:hover::after,
+        .font-selector[data-tooltip]:hover::after {
+            opacity: 1;
+        }
+
+        .popover {
+            position: fixed;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 10px;
+            padding: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 150;
+            opacity: 0;
+            transform: translateY(-6px) scale(0.98);
+            filter: blur(6px);
+            transform-origin: top center;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard),
+                        visibility 0s linear var(--anim-fast);
+        }
+        .popover.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+            pointer-events: auto;
+            visibility: visible;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard);
+        }
+        .popover button {
+            background: transparent;
+            border: none;
+            color: #e4e4e7;
+            text-align: left;
+            padding: 6px 10px;
+            width: 100%;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .popover button:hover,
+        .popover button:focus {
+            background: #27272a;
+            outline: none;
+        }
+
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+        }
+        .checklist li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 10px;
+            padding: 8px 10px;
+            margin: 6px 0;
+        }
+        .checklist input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--accent-primary);
+        }
+
+        .command-palette {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 360px;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+            z-index: 220;
+            display: none;
+        }
+        .command-palette.open { display: block; }
+        .command-palette input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: #e4e4e7;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            outline: none;
+            border-bottom: 1px solid #2b2b31;
+        }
+        .command-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .command-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .command-item.active,
+        .command-item:hover {
+            background: #27272a;
+        }
+
+        /* --- Find/Replace Widget (New) --- */
+        .find-widget {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            padding: 8px;
+            border-radius: 8px;
+            display: flex;
+            gap: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            z-index: 90;
+            opacity: 0;
+            transform: translateY(-6px) scale(0.98);
+            filter: blur(6px);
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard),
+                        visibility 0s linear var(--anim-fast);
+        }
+        .find-widget.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+            pointer-events: auto;
+            visibility: visible;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard);
+        }
+        .find-input {
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            width: 150px;
+            outline: none;
+        }
+        .find-input:focus { border-color: var(--accent-primary); }
+        .find-input.no-match { border-color: #f87171; }
+        .find-count {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+            min-width: 44px;
+            text-align: center;
+        }
+
+        mark.lp-find-hit {
+            background: rgba(250, 204, 21, 0.2);
+            color: inherit;
+            padding: 0 1px;
+            border-radius: 2px;
+        }
+        mark.lp-find-hit.lp-find-current {
+            background: rgba(250, 204, 21, 0.45);
+        }
+        mark.lp-find-hit.lp-find-pulse {
+            animation: findPulse var(--anim-mid) var(--ease-smooth);
+        }
+
+        .export-dropdown {
+            position: absolute;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            padding: 6px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 170px;
+            box-shadow: 0 10px 26px rgba(0,0,0,0.5);
+            z-index: 95;
+            opacity: 0;
+            transform: translateY(-6px) scale(0.98);
+            filter: blur(6px);
+            transform-origin: top right;
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard),
+                        visibility 0s linear var(--anim-fast);
+        }
+        .export-dropdown.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+            pointer-events: auto;
+            visibility: visible;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard);
+        }
+        .export-dropdown button {
+            background: transparent;
+            border: none;
+            color: #e4e4e7;
+            padding: 6px 8px;
+            text-align: left;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .export-dropdown button:hover,
+        .export-dropdown button:focus {
+            background: #27272a;
+            color: #fff;
+        }
+
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 110;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .settings-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .settings-card {
+            width: min(520px, 90vw);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+        }
+        .settings-modal.open .settings-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .settings-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #27272a;
+        }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-row label {
+            color: #d4d4d8;
+            font-size: 0.9rem;
+        }
+        .settings-row select,
+        .settings-row input[type="color"] {
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #fff;
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+        .toggle {
+            width: 42px;
+            height: 22px;
+            border-radius: 999px;
+            background: #3f3f46;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .toggle::after {
+            content: "";
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s ease;
+        }
+        .toggle.active {
+            background: var(--accent-primary);
+        }
+        .toggle.active::after {
+            transform: translateX(20px);
+        }
+
+        .about-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 120;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .about-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .about-card {
+            width: min(420px, 90vw);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 22px 60px rgba(0,0,0,0.65);
+            text-align: center;
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+        }
+        .about-modal.open .about-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .about-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            margin: 4px auto 12px auto;
+            display: block;
+        }
+        .about-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .about-version {
+            color: #a1a1aa;
+            font-size: 0.85rem;
+            margin-bottom: 14px;
+        }
+        .about-description {
+            color: #d4d4d8;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+        .about-meta {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            margin-bottom: 18px;
+        }
+        .about-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .about-actions .primary-btn,
+        .about-actions .secondary-btn {
+            border-radius: 8px;
+            padding: 8px 14px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .about-actions .primary-btn {
+            background: var(--accent-primary);
+            color: #fff;
+        }
+        .about-actions .secondary-btn {
+            background: transparent;
+            border-color: #3f3f46;
+            color: #e4e4e7;
+        }
+
+        /* --- Footer Status Bar --- */
+        footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 16px;
+            background-color: var(--bg-color);
+            border-top: 1px solid #27272a;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            z-index: 50;
+            font-family: var(--font-mono);
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        .footer-left, .footer-right { display: flex; align-items: center; gap: 16px; }
+        .status-item { cursor: pointer; padding: 2px 6px; border-radius: 4px; display: flex; align-items: center; gap: 6px; }
+        .status-item:hover { background: #27272a; color: #fff; }
+        .status-badge { background: #3f3f46; color: #fff; padding: 1px 4px; border-radius: 3px; font-size: 0.7em; }
+
+        .lp-toast {
+            position: fixed;
+            right: 18px;
+            bottom: 48px;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            color: #e4e4e7;
+            padding: 10px 12px;
+            border-radius: 10px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
+            z-index: 300;
+            min-width: 220px;
+        }
+        .lp-toast.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .lp-toast .toast-message { font-size: 0.85rem; }
+        .lp-toast .toast-action {
+            background: transparent;
+            border: 1px solid #3f3f46;
+            color: #e4e4e7;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .lp-toast .toast-action:hover { background: #27272a; color: #fff; }
+        .lp-toast .toast-progress {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            height: 2px;
+            background: var(--accent-primary);
+            width: 100%;
+            transform-origin: left;
+            animation: toastProgress var(--anim-slow) linear forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toolbarIn { from { opacity: 0; transform: translate(-50%, 6px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes toolbarInFloating { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes findPulse { 0% { box-shadow: 0 0 0 rgba(250, 204, 21, 0.0); } 60% { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.18); } 100% { box-shadow: 0 0 0 rgba(250, 204, 21, 0.0); } }
+        @keyframes toastProgress { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+        @keyframes codeBlockIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-window">
+        <header>
+            <div class="menubar">
+                <img src="logo/LucidPad.png" alt="LP" class="app-logo">
+                <div class="menu-item" data-menu="file">
+                    <span class="menu-label">File</span>
+                    <div class="menu-dropdown">
+                        <button data-action="file:new">New <span class="menu-shortcut">Ctrl+N</span></button>
+                        <button data-action="file:open">Open… <span class="menu-shortcut">Ctrl+O</span></button>
+                        <button data-action="file:save">Save <span class="menu-shortcut">Ctrl+S</span></button>
+                        <button data-action="file:saveAs">Save As… <span class="menu-shortcut">Ctrl+Shift+S</span></button>
+                        <button data-action="file:closeTab">Close Tab <span class="menu-shortcut">Ctrl+W</span></button>
+                        <button data-action="app:quit">Quit <span class="menu-shortcut">Alt+F4</span></button>
+                    </div>
+                </div>
+                <div class="menu-item" data-menu="edit">
+                    <span class="menu-label">Edit</span>
+                    <div class="menu-dropdown">
+                        <button data-action="edit:undo">Undo <span class="menu-shortcut">Ctrl+Z</span></button>
+                        <button data-action="edit:redo">Redo <span class="menu-shortcut">Ctrl+Y</span></button>
+                        <button data-action="edit:cut">Cut <span class="menu-shortcut">Ctrl+X</span></button>
+                        <button data-action="edit:copy">Copy <span class="menu-shortcut">Ctrl+C</span></button>
+                        <button data-action="edit:paste">Paste <span class="menu-shortcut">Ctrl+V</span></button>
+                        <button data-action="edit:selectAll">Select All <span class="menu-shortcut">Ctrl+A</span></button>
+                        <button data-action="edit:find">Find <span class="menu-shortcut">Ctrl+F</span></button>
+                        <button data-action="edit:replace">Replace <span class="menu-shortcut">Ctrl+H</span></button>
+                    </div>
+                </div>
+                <div class="menu-item" data-menu="view">
+                    <span class="menu-label">View</span>
+                    <div class="menu-dropdown">
+                        <button data-action="view:wordWrap">Toggle Word Wrap</button>
+                        <button data-action="view:zoomIn">Zoom In <span class="menu-shortcut">Ctrl+=</span></button>
+                        <button data-action="view:zoomOut">Zoom Out <span class="menu-shortcut">Ctrl+-</span></button>
+                        <button data-action="view:zoomReset">Zoom Reset <span class="menu-shortcut">Ctrl+0</span></button>
+                        <button data-action="view:fullscreen">Toggle Fullscreen <span class="menu-shortcut">F11</span></button>
+                        <button data-action="view:zen">Toggle Zen Mode</button>
+                    </div>
+                </div>
+                <div class="menu-item" data-menu="go">
+                    <span class="menu-label">Go</span>
+                    <div class="menu-dropdown">
+                        <button data-action="go:line">Go to Line <span class="menu-shortcut">Ctrl+G</span></button>
+                    </div>
+                </div>
+                <div class="menu-item" data-menu="help">
+                    <span class="menu-label">Help</span>
+                    <div class="menu-dropdown">
+                        <button data-action="help:about">About</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="header-toolbar">
+                <div class="tabs-container">
+                    <div class="tabs"></div>
+                    <button class="icon-btn" title="New Tab"><i class="ri-add-line"></i></button>
+                </div>
+
+                <div class="header-actions">
+                    <button class="icon-btn" title="Search all files" data-action="search"><i class="ri-search-line"></i></button>
+                    <button class="icon-btn" title="Markdown Preview" data-action="preview-toggle"><i class="ri-layout-column-line"></i></button>
+                    <button class="icon-btn" title="Zen Mode" data-action="zen-toggle"><i class="ri-fullscreen-line"></i></button>
+                    <button class="icon-btn" title="Export PDF" data-action="export-menu"><i class="ri-share-forward-line"></i></button>
+                    <div class="divider"></div>
+                    <button class="icon-btn" title="Settings" data-action="settings-open"><i class="ri-settings-3-line"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <div class="editor-shell">
+        <div class="export-dropdown" id="export-dropdown">
+            <button data-export="txt">Export as TXT</button>
+            <button data-export="html">Export as HTML</button>
+            <button data-export="pdf">Export as PDF</button>
+        </div>
+        <div class="find-widget">
+            <i class="ri-arrow-down-s-line" style="color: #71717a;"></i>
+            <input type="text" class="find-input" value="" placeholder="Find">
+            <div class="divider"></div>
+            <span class="find-count">0/0</span>
+            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i class="ri-arrow-up-line"></i></button>
+            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i class="ri-arrow-down-line"></i></button>
+            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i class="ri-close-line"></i></button>
+        </div>
+
+        <main class="editor-area" contenteditable="true" spellcheck="false" data-plain="true">
+            <h1>LucidPad 2.2.0</h1>
+            
+            <p>
+                Say hello to the most feature-packed and aesthetic version of <span class="highlight-badge">LucidPad</span> yet! This release <span class="link-text">turbocharges your productivity</span> and takes your notes to the next dimension. It's <span class="version-badge">v2.2.0</span>.
+            </p>
+
+            <ol>
+                <li>Get a cleaner, bluer interface this time with <span class="highlight-badge">Dark Mode</span> enabled.</li>
+                <li>
+                    <span><span style="margin-right:8px">🔗</span><span class="link-text" style="font-weight: 500; color: #fff;">Links Editor</span> – Manage and edit links like a pro.</span>
+                </li>
+                <li>
+                    <span><span style="margin-right:8px">🧠</span>Mermaid & PlantUML – Visualize ideas with flowcharts.</span>
+                </li>
+                <li>
+                    <span><span style="margin-right:8px">🔥</span>Embed Anything – Drop in videos, websites, and magic!</span>
+                </li>
+                <li>
+                    <span><span style="margin-right:8px">🔊</span>Let your notes speak with pause / stop and a visualizer.</span>
+                </li>
+                <li>
+                    <span><span style="margin-right:8px">✏️</span>Better Formatting – Math-Blocks, Underline etc.</span>
+                </li>
+            </ol>
+            
+            <p>Go ahead, click here and start typing...</p>
+        </main>
+        <aside class="preview-panel" aria-hidden="true">
+            <div class="preview-content"></div>
+        </aside>
+
+        <div class="floating-toolbar">
+            <div class="font-selector" data-tooltip="Headings">
+                Headings
+                <i class="ri-arrow-down-s-line"></i>
+            </div>
+            <div class="divider"></div>
+            <button class="tool-btn" title="Bold (Ctrl+B)" data-action="bold" data-tooltip="Bold"><i class="ri-bold"></i></button>
+            <button class="tool-btn" title="Italic (Ctrl+I)" data-action="italic" data-tooltip="Italic"><i class="ri-italic"></i></button>
+            <button class="tool-btn" title="Underline (Ctrl+U)" data-action="underline" data-tooltip="Underline"><i class="ri-underline"></i></button>
+            <div class="divider"></div>
+            <button class="tool-btn active" title="Align Left" data-action="align-left" data-tooltip="Align Left"><i class="ri-align-left"></i></button>
+            <button class="tool-btn" title="Align Center" data-action="align-center" data-tooltip="Align Center"><i class="ri-align-center"></i></button>
+            <button class="tool-btn" title="Align Right" data-action="align-right" data-tooltip="Align Right"><i class="ri-align-right"></i></button>
+            <div class="divider"></div>
+            <button class="tool-btn" title="Bullet List" data-action="list" data-tooltip="Bullet List"><i class="ri-list-unordered"></i></button>
+            <button class="tool-btn" title="Checklist" data-action="checklist" data-tooltip="Checklist"><i class="ri-checkbox-line"></i></button>
+            <button class="tool-btn" title="Insert Link (Ctrl+K)" data-action="link" data-tooltip="Insert Link"><i class="ri-link"></i></button>
+            <div class="divider"></div>
+            <button class="tool-btn" title="Undo (Ctrl+Z)" data-action="undo" data-tooltip="Undo"><i class="ri-arrow-go-back-line"></i></button>
+            <button class="tool-btn" title="Redo (Ctrl+Y)" data-action="redo" data-tooltip="Redo"><i class="ri-arrow-go-forward-line"></i></button>
+            <button class="tool-btn" title="Clear Formatting" data-action="clear" data-tooltip="Clear Formatting"><i class="ri-format-clear"></i></button>
+            <div class="divider"></div>
+            <button class="tool-btn" title="Word Wrap" data-action="word-wrap" data-tooltip="Word Wrap"><i class="ri-text-wrap"></i></button>
+        </div>
+
+        <div class="settings-modal" id="settings-modal" aria-hidden="true">
+            <div class="settings-card">
+                <div class="settings-header">
+                    <div class="settings-title">Settings</div>
+                    <button class="icon-btn" data-action="settings-close"><i class="ri-close-line"></i></button>
+                </div>
+                <div class="settings-row">
+                    <label>Auto-save</label>
+                    <div class="toggle" data-setting="autosave"></div>
+                </div>
+                <div class="settings-row">
+                    <label>Word wrap</label>
+                    <div class="toggle" data-setting="wordwrap"></div>
+                </div>
+                <div class="settings-row">
+                    <label>Tab size</label>
+                    <select data-setting="tabsize">
+                        <option value="2">2 spaces</option>
+                        <option value="4">4 spaces</option>
+                        <option value="8">8 spaces</option>
+                    </select>
+                </div>
+                <div class="settings-row">
+                    <label>Accent color</label>
+                    <select data-setting="accent">
+                        <option value="blue">Blue</option>
+                        <option value="purple">Purple</option>
+                        <option value="green">Green</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="about-modal" id="about-modal" aria-hidden="true">
+            <div class="about-card" role="dialog" aria-modal="true" aria-label="About LucidPad">
+                <img src="logo/LucidPad.png" alt="LucidPad Logo" class="about-logo">
+                <div class="about-title">LucidPad</div>
+                <div class="about-version" data-about-version>Version</div>
+                <div class="about-description">A modern, minimal editor built with Electron.</div>
+                <div class="about-meta" data-about-author></div>
+                <div class="about-actions">
+                    <button class="secondary-btn" data-action="about-updates">Check for updates</button>
+                    <button class="primary-btn" data-action="about-close">OK</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="heading-popover" class="popover" role="menu" aria-hidden="true">
+            <button data-action="format:title">Title</button>
+            <button data-action="format:subtitle">Subtitle</button>
+            <button data-action="format:heading">Heading</button>
+            <button data-action="format:subheading">Subheading</button>
+            <button data-action="format:section">Section</button>
+            <button data-action="format:subsection">Subsection</button>
+            <button data-action="format:body">Body</button>
+        </div>
+
+        <div id="command-palette" class="command-palette" role="dialog" aria-hidden="true">
+            <input type="text" placeholder="Type a command...">
+            <div class="command-list"></div>
+        </div>
+
+        </div>
+
+        <footer>
+            <div class="footer-left">
+                <div class="status-item"><i class="ri-git-branch-line"></i> main</div>
+                <div class="status-item"><i class="ri-error-warning-line"></i> 0</div>
+                <div class="status-item"><i class="ri-save-3-line"></i> Auto-Save: On</div>
+                <div class="status-item">UTF-8</div>
+            </div>
+            <div class="footer-right">
+                <span class="status-item">Ln 12, Col 45</span>
+                <span class="status-item">633 chars</span>
+                <span class="status-item">Tab Size: 4</span>
+                <span class="status-item" style="color: var(--accent-primary);"><i class="ri-markdown-line"></i> Markdown</span>
+                <span class="status-item"><i class="ri-notification-3-fill"></i></span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>
