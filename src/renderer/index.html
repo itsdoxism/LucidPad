@@ -5,10 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LucidPad</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Fonts and icons are bundled locally via Vite in renderer/main.js -->
     
     <style>
         :root {
@@ -31,12 +28,52 @@
             --anim-slow: 260ms;
             --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
             --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+            --side-panel-width: 320px;
+            --app-bg-image: none;
+            --app-bg-dim: 0.55;
+            --app-bg-blur: 0px;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+        body.reduce-motion {
+            --anim-fast: 0ms;
+            --anim-mid: 0ms;
+            --anim-slow: 0ms;
+        }
+        body.reduce-motion * {
+            animation: none !important;
+            transition: none !important;
+            scroll-behavior: auto !important;
+        }
+        body.no-blur * {
+            backdrop-filter: none !important;
+        }
+        body.no-blur .menu-dropdown,
+        body.no-blur .menu-item.open .menu-dropdown,
+        body.no-blur .popover,
+        body.no-blur .floating-toolbar,
+        body.no-blur .settings-modal,
+        body.no-blur .settings-card,
+        body.no-blur .settings-page,
+        body.no-blur .command-palette,
+        body.no-blur .find-widget,
+        body.no-blur .activity-panel,
+        body.no-blur .download-card,
+        body.no-blur .update-card,
+        body.no-blur .changelog-card,
+        body.no-blur .about-card,
+        body.no-blur .onboard-card,
+        body.no-blur .save-card,
+        body.no-blur .trash-card {
+            backdrop-filter: none !important;
+            filter: none !important;
+        }
+        body.no-blur .app-window::after {
+            backdrop-filter: none !important;
         }
 
         body {
@@ -46,6 +83,27 @@
             height: 100vh;
             overflow: hidden;
         }
+        /* Minimal scrollbar for whole app */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #2f2f33 transparent;
+        }
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        *::-webkit-scrollbar-thumb {
+            background-color: #2f2f33;
+            border-radius: 999px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background-color: #3a3a3f;
+        }
 
         .app-window {
             width: 100%;
@@ -54,6 +112,54 @@
             display: flex;
             flex-direction: column;
             position: relative;
+            isolation: isolate;
+        }
+        .app-window::before,
+        .app-window::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .app-window::before {
+            z-index: -2;
+            background-image: var(--app-bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: saturate(1.03) contrast(1.04);
+        }
+        .app-bg-video {
+            position: absolute;
+            inset: 0;
+            z-index: -2;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+            overflow: hidden;
+        }
+        .app-bg-video video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: saturate(1.03) contrast(1.04);
+            transform: scale(1.02);
+        }
+        .app-window::after {
+            z-index: -1;
+            background: rgba(8, 10, 14, var(--app-bg-dim));
+            backdrop-filter: blur(var(--app-bg-blur));
+        }
+        body.has-background-image .app-window::before {
+            opacity: 1;
+        }
+        body.has-background-video .app-bg-video {
+            opacity: 1;
+        }
+        body.has-background-media .app-window::after {
+            opacity: 1;
         }
 
         .editor-shell {
@@ -63,7 +169,7 @@
             display: flex;
             flex-direction: column;
         }
-        .editor-shell.split-view {
+        .editor-shell.side-panel-open {
             flex-direction: row;
         }
 
@@ -83,6 +189,21 @@
             font-size: 0.85rem;
             color: var(--text-muted);
             gap: 16px;
+            -webkit-app-region: drag;
+        }
+
+        .menubar .app-logo,
+        .menubar .menu-item,
+        .menubar .menu-dropdown,
+        .menubar .menu-dropdown button,
+        .window-controls,
+        .window-control-btn {
+            -webkit-app-region: no-drag;
+        }
+
+        .menu-spacer {
+            flex: 1;
+            min-width: 8px;
         }
 
         .app-logo {
@@ -91,6 +212,15 @@
             border-radius: 6px;
             object-fit: contain;
             margin-right: 8px;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-drag: none;
+            transition: transform var(--anim-fast) var(--ease-standard),
+                        filter var(--anim-fast) var(--ease-standard);
+        }
+        .app-logo:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 0 6px var(--accent-glow));
         }
 
         .menu-item {
@@ -119,63 +249,160 @@
             align-items: center;
             gap: 6px;
         }
-        .menu-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            min-width: 180px;
-            background: #18181b;
-            border: 1px solid #3f3f46;
-            border-radius: 8px;
-            padding: 6px 0;
-            margin-top: 6px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            opacity: 0;
-            transform: translateY(-6px) scale(0.98);
-            filter: blur(6px);
-            transform-origin: top left;
-            pointer-events: none;
-            visibility: hidden;
-            transition: opacity var(--anim-fast) var(--ease-standard),
-                        transform var(--anim-fast) var(--ease-standard),
-                        filter var(--anim-fast) var(--ease-standard),
-                        visibility 0s linear var(--anim-fast);
-            z-index: 200;
-        }
-        .menu-item.open .menu-dropdown {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            filter: blur(0);
-            pointer-events: auto;
-            visibility: visible;
-            transition: opacity var(--anim-fast) var(--ease-standard),
-                        transform var(--anim-fast) var(--ease-standard),
-                        filter var(--anim-fast) var(--ease-standard);
-        }
-        .menu-dropdown button {
-            width: 100%;
-            background: transparent;
-            border: none;
-            color: var(--text-main);
-            text-align: left;
-            padding: 6px 12px;
-            font-size: 0.85rem;
-            cursor: pointer;
+
+        .window-controls {
+            margin-left: auto;
             display: flex;
-            justify-content: space-between;
-            gap: 12px;
+            align-items: center;
+            gap: 4px;
         }
-        .menu-dropdown button:hover,
-        .menu-dropdown button:focus {
-            background: #27272a;
-            color: #fff;
-            outline: none;
+
+        .window-control-btn {
+            width: 30px;
+            height: 24px;
+            border: none;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard);
         }
-        .menu-shortcut {
-            color: #a1a1aa;
-            font-family: var(--font-mono);
-            font-size: 0.75rem;
+
+        .window-control-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
         }
+
+        .window-control-btn.close:hover {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        .window-control-btn i {
+            pointer-events: none;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .lp-lucide-host {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            width: 1em;
+            height: 1em;
+            flex: 0 0 auto;
+            font-style: normal;
+            vertical-align: middle;
+        }
+
+        .lp-lucide-icon {
+            display: block;
+            width: 1em;
+            height: 1em;
+            stroke: currentColor;
+            fill: none;
+        }
+        :root {
+    --anim-fast: 200ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --text-main: #e4e4e7;
+    --font-mono: 'JetBrains Mono', monospace;
+}
+
+.menu-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 200px; /* Бага зэрэг өргөн болгосон */
+    background: rgba(24, 24, 27, 0.8); /* Бага зэрэг тунгалаг */
+    backdrop-filter: blur(12px); /* Glassmorphism эффект */
+    border: 1px solid rgba(63, 63, 70, 0.5);
+    border-radius: 10px;
+    padding: 8px; /* Дотор зайг жигд болгосон */
+    margin-top: 8px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    
+    /* Animation states */
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    filter: blur(4px);
+    transform-origin: top left;
+    pointer-events: none;
+    visibility: hidden;
+    
+    transition: 
+        opacity var(--anim-fast) var(--ease-standard),
+        transform var(--anim-fast) var(--ease-standard),
+        filter var(--anim-fast) var(--ease-standard),
+        visibility 0s linear var(--anim-fast);
+    z-index: 200;
+}
+
+.menu-item.open .menu-dropdown {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+    pointer-events: auto;
+    visibility: visible;
+    transition: 
+        opacity var(--anim-fast) var(--ease-standard),
+        transform var(--anim-fast) var(--ease-standard),
+        filter var(--anim-fast) var(--ease-standard);
+}
+
+.menu-dropdown button {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center; /* Төвлөрүүлэлт */
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 6px; /* Button hover дээр булангуудыг нь бөөрөнхийлөх */
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.menu-dropdown button:hover,
+.menu-dropdown button:focus {
+    background: rgba(63, 63, 70, 0.4); /* Илүү зөөлөн hover */
+    color: #fff;
+    outline: none;
+}
+
+/* Shortcut-ийг үргэлж харагддаг байлгавал хэрэглэгчдэд илүү тустай */
+.menu-shortcut {
+    color: #71717a;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    border: 1px solid rgba(63, 63, 70, 0.3); /* Товчлуурын харагдац */
+    padding: 2px 4px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.menu-dropdown button:hover .menu-shortcut {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Сэдэв тусгаарлагч шугам (Optional) */
+.menu-divider {
+    height: 1px;
+    background: rgba(63, 63, 70, 0.4);
+    margin: 4px 8px;
+}
 
         /* Second Row: Tabs & Toolbar */
         .header-toolbar {
@@ -191,17 +418,59 @@
             overflow: hidden;
             flex: 1;
             margin-right: 20px;
+            gap: 6px;
+        }
+
+        .tabs-viewport {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
         }
 
         .tabs {
             display: flex;
             gap: 4px;
             overflow-x: auto;
-            /* Hide scrollbar */
+            scroll-behavior: smooth;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
         .tabs::-webkit-scrollbar { display: none; }
+
+        .tabs-arrow {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        opacity var(--anim-fast) var(--ease-standard);
+        }
+        .tabs-arrow:hover { color: #ffffff; }
+        .tabs-arrow:active { transform: scale(0.96); }
+        .tabs-arrow.is-disabled {
+            opacity: 0.35;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .tabs-fade {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 28px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity var(--anim-fast) var(--ease-standard);
+        }
+        .tabs-fade.is-visible { opacity: 1; }
 
         .tab {
             padding: 6px 10px;
@@ -225,6 +494,17 @@
             justify-content: space-between;
             position: relative;
         }
+        .tab-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+        }
+        .tabs.dense .tab {
+            min-width: 96px;
+            padding: 5px 8px;
+            font-size: 0.75rem;
+        }
+        .tabs.dense .tab-title { max-width: 120px; }
         .tab::after {
             content: "";
             position: absolute;
@@ -280,6 +560,7 @@
         .tab:hover .tab-close { opacity: 1; }
         .tab-close:hover { background: #3f3f46; color: #fff; }
 
+
         .header-actions {
             display: flex;
             gap: 6px;
@@ -308,36 +589,202 @@
             background: #27272a;
             color: #fff;
         }
+        .settings-close-btn {
+            width: 34px;
+            height: 34px;
+            font-size: 1.2rem;
+        }
+        .settings-close-btn:hover {
+            background: transparent;
+        }
 
         /* --- Editor Content --- */
-        .editor-area {
+        .editor-scroll {
             flex: 1;
+            overflow-y: auto;
+            position: relative;
+        }
+        .editor-area {
             padding: 12px 16px;
             padding-bottom: 64px;
-            overflow-y: auto;
             line-height: 1.7;
             outline: none;
+            caret-color: #e5e7eb;
             transition: width var(--anim-mid) var(--ease-standard),
                         padding var(--anim-mid) var(--ease-standard);
+            min-height: 100%;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
-        .editor-area.no-wrap { white-space: pre; }
+        .ProseMirror {
+            outline: none;
+        }
+        .tiptap-bubble {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            background: rgba(20, 20, 20, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 6px 8px;
+            border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+            backdrop-filter: blur(14px);
+        }
+        .tiptap-bubble .bubble-btn {
+            background: transparent;
+            border: none;
+            color: #cbd5f5;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
+        }
+        .tiptap-bubble .bubble-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+        .tiptap-bubble .bubble-btn.active {
+            background: rgba(99, 102, 241, 0.2);
+            color: #ffffff;
+        }
+        body.spell-menu-open .tiptap-bubble {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+        }
+        .line-highlight {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 0;
+            background: rgba(63, 63, 70, 0.2);
+            border-radius: 6px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity var(--anim-fast) var(--ease-standard);
+            z-index: 2;
+        }
+        .line-highlight.is-visible {
+            opacity: 1;
+        }
+        .plain-mode .line-highlight { display: none; }
+        .editor-area::spelling-error,
+        .editor-area::grammar-error,
+        .editor-area::-webkit-spelling-error,
+        .editor-area::-webkit-grammar-error {
+            background: transparent !important;
+            box-shadow: none !important;
+            text-decoration: underline wavy #f87171;
+            text-decoration-thickness: 1px;
+            text-decoration-skip-ink: none;
+        }
+        .editor-area.no-wrap {
+            white-space: pre;
+            word-break: normal;
+        }
         .editor-area.preview-mode { cursor: default; }
+        .plain-mode .editor-scroll { display: none; }
+        .plain-mode .floating-toolbar,
+        .plain-mode .outline-panel { display: none; }
+        .plain-editor {
+            position: relative;
+            flex: 1;
+            display: none;
+            min-height: 0;
+        }
+        .plain-mode .plain-editor { display: block; }
+        .plain-scroll {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background: transparent;
+        }
+        .plain-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .plain-spacer {
+            width: 1px;
+            height: 0;
+        }
+        .plain-input {
+            position: absolute;
+            opacity: 0;
+            left: -9999px;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            resize: none;
+            border: none;
+            background: transparent;
+            color: transparent;
+            caret-color: transparent;
+        }
         .zen-mode header,
         .zen-mode footer,
         .zen-mode .floating-toolbar,
         .zen-mode .find-widget {
             display: none;
         }
-        .zen-mode .preview-panel {
+        .zen-mode .outline-panel {
             display: none;
         }
         .zen-mode .editor-area {
             padding: 60px 18% 60px 18%;
         }
+        .viewmode-exit {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            z-index: 210;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid #3f3f46;
+            background: rgba(17, 24, 39, 0.85);
+            color: #e5e7eb;
+            font-size: 0.85rem;
+            cursor: pointer;
+            opacity: 0;
+            transform: translateY(-6px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        transform var(--anim-mid) var(--ease-standard);
+            pointer-events: none;
+            backdrop-filter: blur(6px);
+        }
+        .zen-mode .viewmode-exit {
+            right: clamp(16px, 18%, 280px);
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+        @media (max-width: 1100px) {
+            .zen-mode .viewmode-exit {
+                right: 16px;
+            }
+        }
+        .viewmode-exit:hover {
+            background: rgba(31, 41, 55, 0.9);
+        }
+        @keyframes viewModePulse {
+            0% { opacity: 0; transform: translateY(6px) scale(0.98); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .viewmode-enter .editor-area {
+            animation: viewModePulse 420ms var(--ease-smooth);
+        }
 
-        .editor-area::-webkit-scrollbar { width: 8px; }
-        .editor-area::-webkit-scrollbar-track { background: transparent; }
-        .editor-area::-webkit-scrollbar-thumb { background-color: #3f3f46; border-radius: 4px; }
 
         h1, h2, h3, h4, h5, h6 { margin: 0 0 16px 0; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
         h1 { font-size: 2rem; }
@@ -347,6 +794,14 @@
         h5 { font-size: 1.05rem; }
         h6 { font-size: 0.95rem; }
         p { margin-bottom: 16px; font-size: 1.05rem; color: #d4d4d8; }
+        blockquote { margin: 0 0 16px 0; padding-left: 14px; border-left: 2px solid #3f3f46; color: #cbd5f5; }
+        code { background: rgba(63, 63, 70, 0.3); padding: 2px 4px; border-radius: 4px; font-family: var(--font-mono); }
+        pre { background: #18181b; padding: 12px; border-radius: 10px; overflow: auto; margin-bottom: 16px; }
+        pre code { background: transparent; padding: 0; }
+        hr { border: none; border-top: 1px solid #2f2f33; margin: 16px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        th, td { border: 1px solid #2f2f33; padding: 8px 10px; text-align: left; }
+        th { background: #18181b; color: #e5e7eb; }
 
 
         .highlight-badge { background-color: var(--highlight-bg); color: var(--highlight-text); padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); font-size: 0.9em; }
@@ -354,84 +809,320 @@
         .link-text { text-decoration: underline; text-decoration-color: #52525b; text-underline-offset: 4px; color: inherit; cursor: pointer; }
         .link-text:hover { color: var(--accent-primary); text-decoration-color: var(--accent-primary); }
 
-        ol { list-style: none; counter-reset: my-counter; padding-left: 10px; }
-        ol li { counter-increment: my-counter; margin-bottom: 16px; font-size: 1.05rem; display: flex; align-items: flex-start; }
+        ul { margin: 0 0 16px 0; padding-left: 24px; list-style: disc; list-style-position: outside; }
+        ul li { margin-bottom: 8px; line-height: 1.6; color: #d4d4d8; }
+        ol { list-style: none; counter-reset: my-counter; padding-left: 10px; margin: 0 0 16px 0; }
+        ol li { counter-increment: my-counter; margin-bottom: 12px; font-size: 1.05rem; display: flex; align-items: flex-start; }
         ol li::before { content: counter(my-counter) "."; color: #71717a; font-weight: 500; margin-right: 16px; min-width: 20px; font-family: var(--font-mono); }
-
-        .preview-panel {
-            display: block;
-            width: 0;
-            border-left: 1px solid transparent;
-            background: #0f0f11;
-            overflow-y: auto;
-            padding: 18px 20px 80px 20px;
-            transition: width var(--anim-mid) var(--ease-standard),
-                        opacity var(--anim-mid) var(--ease-standard);
+        .editor-area ul[data-type="taskList"] {
+            list-style: none;
+            margin: 0 0 18px 0;
+            padding-left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .editor-area ul[data-type="taskList"] li[data-type="taskItem"] {
+            position: relative;
+            margin: 0;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(77, 86, 110, 0.38);
+            background:
+                linear-gradient(180deg, rgba(38, 43, 56, 0.45) 0%, rgba(21, 23, 30, 0.62) 100%),
+                radial-gradient(circle at 12% 50%, rgba(59, 130, 246, 0.12), transparent 55%);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            transition: border-color var(--anim-fast) var(--ease-standard),
+                        background-color var(--anim-fast) var(--ease-standard),
+                        box-shadow var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
+        }
+        .editor-area ul[data-type="taskList"] li[data-type="taskItem"]::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 10px;
+            bottom: 10px;
+            width: 3px;
+            border-radius: 999px;
+            background: linear-gradient(180deg, rgba(96, 165, 250, 0.92), rgba(59, 130, 246, 0.2));
+            opacity: 0.65;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        background var(--anim-fast) var(--ease-standard);
+        }
+        .editor-area ul[data-type="taskList"] li[data-type="taskItem"]:hover {
+            border-color: rgba(96, 165, 250, 0.45);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(2, 6, 23, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+        .editor-area li[data-type="taskItem"] > label {
+            margin-top: 2px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
+            position: relative;
+        }
+        .editor-area li[data-type="taskItem"] > label input[type="checkbox"] {
+            position: absolute;
+            inset: 0;
+            margin: 0;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
             opacity: 0;
+            z-index: 2;
+        }
+        .editor-area li[data-type="taskItem"] > label span {
+            width: 18px;
+            height: 18px;
+            border-radius: 6px;
+            border: 1.5px solid #6b7280;
+            background: linear-gradient(180deg, rgba(10, 13, 21, 0.95), rgba(18, 23, 34, 0.9));
+            display: inline-grid;
+            place-items: center;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        border-color var(--anim-fast) var(--ease-standard),
+                        box-shadow var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
+        }
+        .editor-area li[data-type="taskItem"] > label span::after {
+            content: "";
+            width: 9px;
+            height: 5px;
+            border: 2px solid transparent;
+            border-right-color: #ffffff;
+            border-bottom-color: #ffffff;
+            transform: translateY(-1px) rotate(45deg) scale(0);
+            transform-origin: center;
+            transition: transform var(--anim-fast) var(--ease-standard);
+        }
+        .editor-area li[data-type="taskItem"] > label:hover span {
+            border-color: #93c5fd;
+        }
+        .editor-area li[data-type="taskItem"] > label input[type="checkbox"]:focus-visible {
+            outline: none;
+        }
+        .editor-area li[data-type="taskItem"] > label input[type="checkbox"]:focus-visible + span {
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.22);
+        }
+        .editor-area li[data-type="taskItem"] > label input[type="checkbox"]:checked + span {
+            background: linear-gradient(180deg, #3b82f6, #2563eb);
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+            animation: taskCheckPulse 180ms var(--ease-standard);
+        }
+        .editor-area li[data-type="taskItem"] > label input[type="checkbox"]:checked + span::after {
+            transform: translateY(-1px) rotate(45deg) scale(1);
+        }
+        .editor-area li[data-type="taskItem"] > div {
+            flex: 1;
+            min-width: 0;
+        }
+        .editor-area li[data-type="taskItem"] > div p {
+            margin-bottom: 0;
+            color: #e5e7eb;
+            line-height: 1.55;
+        }
+        .editor-area li[data-type="taskItem"][data-checked="true"] > div p {
+            color: #9ca3af;
+            text-decoration: line-through;
+            text-decoration-color: #6b7280;
+            text-decoration-thickness: 1.5px;
+        }
+        .editor-area li[data-type="taskItem"][data-checked="true"] {
+            border-color: rgba(71, 85, 105, 0.42);
+            background:
+                linear-gradient(180deg, rgba(19, 25, 39, 0.56) 0%, rgba(17, 20, 29, 0.7) 100%),
+                radial-gradient(circle at 12% 50%, rgba(59, 130, 246, 0.08), transparent 52%);
+        }
+        .editor-area li[data-type="taskItem"][data-checked="true"]::before {
+            opacity: 0.35;
+            background: linear-gradient(180deg, rgba(96, 165, 250, 0.52), rgba(59, 130, 246, 0.12));
+        }
+        .editor-area li[data-type="taskItem"] ul[data-type="taskList"] {
+            margin: 12px 0 0 0;
+            padding-left: 16px;
+            position: relative;
+        }
+        .editor-area li[data-type="taskItem"] ul[data-type="taskList"]::before {
+            content: "";
+            position: absolute;
+            left: 4px;
+            top: 2px;
+            bottom: 2px;
+            width: 1px;
+            background: linear-gradient(180deg, rgba(148, 163, 184, 0.34), rgba(148, 163, 184, 0.08));
+        }
+        @keyframes taskCheckPulse {
+            0% {
+                transform: scale(0.92);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .outline-resizer {
+            width: 6px;
+            cursor: col-resize;
+            background: transparent;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            display: none;
+            right: var(--side-panel-width);
+        }
+        .outline-resizer::before {
+            content: "";
+            position: absolute;
+            left: 2px;
+            top: 12px;
+            bottom: 12px;
+            width: 2px;
+            border-radius: 999px;
+            background: #2b2b31;
+            transition: background-color var(--anim-fast) var(--ease-standard);
+        }
+        .outline-resizer:hover::before {
+            background: var(--accent-primary);
+        }
+        .outline-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: var(--side-panel-width);
+            border-left: 1px solid var(--border-color);
+            background: #0f0f11;
+            overflow: hidden;
+            padding: 16px 14px 18px 14px;
+            transition: width var(--anim-mid) var(--ease-standard),
+                        opacity 340ms var(--ease-standard),
+                        transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+                        box-shadow var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear 420ms;
+            opacity: 0;
+            transform: translateX(48px);
+            box-shadow: -10px 0 24px rgba(0, 0, 0, 0.25);
             pointer-events: none;
+            will-change: transform, opacity;
+            visibility: hidden;
+            transform-origin: right center;
         }
-        .editor-shell.split-view .preview-panel {
-            width: 50%;
+        .editor-shell.side-panel-open .outline-panel {
             opacity: 1;
+            transform: translateX(0);
             pointer-events: auto;
-            border-left-color: var(--border-color);
+            box-shadow: -12px 0 26px rgba(0, 0, 0, 0.3);
+            visibility: visible;
+            transition: width var(--anim-mid) var(--ease-standard),
+                        opacity 340ms var(--ease-standard),
+                        transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+                        box-shadow var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear 0s;
         }
-        .editor-shell.split-view .editor-area {
-            width: 50%;
+        .editor-shell.side-panel-open .outline-resizer {
+            display: block;
+        }
+        .editor-shell.side-panel-open .editor-area {
+            width: calc(100% - var(--side-panel-width));
             padding-bottom: 80px;
         }
-        .preview-panel .preview-content {
-            max-width: 780px;
+        .outline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
         }
-        .preview-panel h1,
-        .preview-panel h2,
-        .preview-panel h3,
-        .preview-panel h4,
-        .preview-panel h5,
-        .preview-panel h6 {
-            margin: 0 0 16px 0;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: -0.02em;
+        .outline-title {
+            font-size: 0.95rem;
+            font-weight: 600;
         }
-        .preview-panel p { margin-bottom: 16px; font-size: 1.02rem; color: #d4d4d8; }
-        .preview-panel code {
-            font-family: var(--font-mono);
-            font-size: 0.9em;
-            background: #1f1f22;
-            padding: 2px 6px;
-            border-radius: 4px;
+        .outline-section {
+            margin-bottom: 14px;
         }
-        .preview-panel pre {
-            background: #1f1f22;
-            padding: 12px 14px;
+        .outline-section h4 {
+            font-size: 0.8rem;
+            color: #a1a1aa;
+            margin-bottom: 6px;
+        }
+        .outline-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 180px;
+            overflow-y: auto;
+        }
+        .outline-item {
+            padding: 6px 8px;
             border-radius: 8px;
-            overflow-x: auto;
+            cursor: pointer;
+            color: #d4d4d8;
+            font-size: 0.85rem;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard);
         }
-        .preview-panel .lp-code-block {
-            animation: codeBlockIn var(--anim-mid) var(--ease-standard);
+        .outline-item.level-2 { padding-left: 18px; font-size: 0.82rem; }
+        .outline-item.level-3 { padding-left: 28px; font-size: 0.8rem; }
+        .outline-item:hover { background: #222228; color: #fff; }
+        .outline-item.active { background: var(--accent-glow); color: #fff; }
+        .tag-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
         }
-        .preview-panel blockquote {
-            border-left: 3px solid var(--accent-primary);
-            padding-left: 12px;
-            color: #cbd5f5;
-            margin-bottom: 16px;
+        .tag-chip {
+            background: #27272a;
+            color: #e4e4e7;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .tag-chip:hover { background: #2f2f36; }
+        .backlinks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .backlink-item {
+            padding: 6px 8px;
+            border-radius: 8px;
+            border: 1px solid #27272a;
+            background: #151518;
+            color: #d4d4d8;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .backlink-item:hover { background: #222228; color: #fff; }
+        .note-info {
+            display: grid;
+            gap: 4px;
+            color: #a1a1aa;
+            font-size: 0.75rem;
         }
 
         /* --- Floating Format Bar --- */
         .floating-toolbar {
             position: absolute;
-            bottom: 60px; 
+            bottom: 60px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #18181b;
-            border: 1px solid #3f3f46;
-            border-radius: 12px;
-            padding: 6px;
+            background-color: #141418;
+            border: 1px solid #2f2f35;
+            border-radius: 10px;
+            padding: 4px 6px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+            gap: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             z-index: 100;
             transition: opacity var(--anim-fast) var(--ease-standard),
                         transform var(--anim-fast) var(--ease-standard);
@@ -447,40 +1138,208 @@
             animation: toolbarInFloating var(--anim-mid) var(--ease-smooth);
         }
 
-        .font-selector { background: transparent; color: #fff; padding: 6px 10px; border-radius: 6px; display: flex; align-items: center; font-size: 0.9rem; cursor: pointer; min-width: 120px; justify-content: space-between; transition: background-color var(--anim-fast) var(--ease-standard), color var(--anim-fast) var(--ease-standard); }
-        .font-selector:hover { background: #27272a; }
-        .divider { width: 1px; height: 20px; background: #3f3f46; margin: 0 4px; }
-        
-        .tool-btn { background: transparent; border: none; color: #a1a1aa; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: background-color var(--anim-fast) var(--ease-standard), color var(--anim-fast) var(--ease-standard), transform var(--anim-fast) var(--ease-standard); }
-        .tool-btn:hover { background: #27272a; color: #fff; }
-        .tool-btn.active { color: var(--accent-primary); background: rgba(59, 130, 246, 0.1); }
+        .toolbar-primary {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .toolbar-sep {
+            color: #3a3a44;
+            font-size: 0.85rem;
+            margin: 0 4px;
+            user-select: none;
+        }
+        .toolbar-spacer {
+            flex: 1;
+            min-width: 10px;
+        }
+        .toolbar-dropdown-group {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .toolbar-dropdown-group.is-hidden {
+            display: none;
+        }
+        .toolbar-trigger {
+            background: transparent;
+            border: none;
+            color: #cbd5f5;
+            padding: 6px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard);
+        }
+        .toolbar-trigger:hover {
+            background: #24242a;
+            color: #ffffff;
+        }
+        .toolbar-trigger i {
+            font-size: 1rem;
+        }
+        .toolbar-dropdown {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 0;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 12px;
+            padding: 6px;
+            min-width: 200px;
+            max-height: 260px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+            pointer-events: none;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
+            z-index: 140;
+        }
+        .toolbar-menu-row {
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            min-width: auto;
+            padding: 6px 8px;
+        }
+        .toolbar-menu-row .tool-menu-item {
+            padding: 6px;
+            border-radius: 6px;
+            min-width: 28px;
+            justify-content: center;
+        }
+        .toolbar-menu-row .toolbar-sep {
+            margin: 0 2px;
+        }
+        .toolbar-dropdown::-webkit-scrollbar {
+            width: 8px;
+        }
+        .toolbar-dropdown::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .toolbar-dropdown::-webkit-scrollbar-thumb {
+            background: #2f2f35;
+            border-radius: 999px;
+        }
+        .toolbar-section {
+            padding: 6px 10px 2px;
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #8b8b94;
+        }
+        .toolbar-section-divider {
+            height: 1px;
+            background: #2b2b31;
+            margin: 4px 6px;
+        }
+        .toolbar-dropdown-group.open .toolbar-dropdown {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        .tool-btn { background: transparent; border: none; color: #b0b0ba; padding: 6px; border-radius: 6px; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; transition: background-color var(--anim-fast) var(--ease-standard), color var(--anim-fast) var(--ease-standard); }
+        .tool-btn:hover { background: #24242a; color: #ffffff; }
+        .tool-btn.active { color: var(--accent-primary); background: var(--accent-glow); }
         .tool-btn.selected { background: #27272a; color: #fff; }
-        .tool-btn[data-tooltip],
-        .font-selector[data-tooltip] {
+        .tool-btn.color-btn { gap: 6px; }
+        .tool-btn .tool-text {
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .tool-btn .color-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--accent-primary);
+            box-shadow: 0 0 0 1px rgba(255,255,255,0.2);
+        }
+        .tool-btn.is-hidden,
+        .tool-menu-item.is-hidden {
+            display: none;
+        }
+        .tool-menu-item {
+            background: transparent;
+            border: none;
+            color: #e4e4e7;
+            text-align: left;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard);
+        }
+        .tool-menu-item:hover,
+        .tool-menu-item:focus-visible {
+            background: var(--accent-glow);
+            color: #ffffff;
+            outline: none;
+        }
+        .tool-menu-item .tool-icon {
+            font-size: 1rem;
+            color: #cbd5f5;
+        }
+        .tool-menu-item .tool-text {
+            font-size: 0.8rem;
+            font-weight: 700;
+            min-width: 36px;
+            color: #ffffff;
+        }
+        .color-input {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            pointer-events: none;
+        }
+        button[data-tooltip] {
             position: relative;
         }
-        .tool-btn[data-tooltip]::after,
-        .font-selector[data-tooltip]::after {
+        button[data-tooltip]::after {
             content: attr(data-tooltip);
             position: absolute;
             bottom: calc(100% + 8px);
             left: 50%;
             transform: translateX(-50%);
-            background: #18181b;
-            border: 1px solid #3f3f46;
+            background: rgba(24, 24, 28, 0.62);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             color: #e4e4e7;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
+            padding: 5px 9px;
+            border-radius: 7px;
+            font-size: 0.72rem;
+            letter-spacing: 0.02em;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
             white-space: nowrap;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.15s ease;
-            z-index: 200;
+            transition: opacity var(--anim-fast) var(--ease-standard);
+            z-index: 260;
         }
-        .tool-btn[data-tooltip]:hover::after,
-        .font-selector[data-tooltip]:hover::after {
+        button[data-tooltip]:hover::after,
+        button[data-tooltip]:focus-visible::after {
             opacity: 1;
+        }
+        .header-actions button[data-tooltip]::after {
+            top: calc(100% + 8px);
+            bottom: auto;
         }
 
         .popover {
@@ -530,26 +1389,6 @@
         .popover button:focus {
             background: #27272a;
             outline: none;
-        }
-
-        .checklist {
-            list-style: none;
-            padding-left: 0;
-        }
-        .checklist li {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 10px;
-            padding: 8px 10px;
-            margin: 6px 0;
-        }
-        .checklist input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            accent-color: var(--accent-primary);
         }
 
         .command-palette {
@@ -653,55 +1492,6 @@
         }
         mark.lp-find-hit.lp-find-pulse {
             animation: findPulse var(--anim-mid) var(--ease-smooth);
-        }
-
-        .export-dropdown {
-            position: absolute;
-            background: #18181b;
-            border: 1px solid #3f3f46;
-            padding: 6px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            min-width: 170px;
-            box-shadow: 0 10px 26px rgba(0,0,0,0.5);
-            z-index: 95;
-            opacity: 0;
-            transform: translateY(-6px) scale(0.98);
-            filter: blur(6px);
-            transform-origin: top right;
-            pointer-events: none;
-            visibility: hidden;
-            transition: opacity var(--anim-fast) var(--ease-standard),
-                        transform var(--anim-fast) var(--ease-standard),
-                        filter var(--anim-fast) var(--ease-standard),
-                        visibility 0s linear var(--anim-fast);
-        }
-        .export-dropdown.open {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-            filter: blur(0);
-            pointer-events: auto;
-            visibility: visible;
-            transition: opacity var(--anim-fast) var(--ease-standard),
-                        transform var(--anim-fast) var(--ease-standard),
-                        filter var(--anim-fast) var(--ease-standard);
-        }
-        .export-dropdown button {
-            background: transparent;
-            border: none;
-            color: #e4e4e7;
-            padding: 6px 8px;
-            text-align: left;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85rem;
-        }
-        .export-dropdown button:hover,
-        .export-dropdown button:focus {
-            background: #27272a;
-            color: #fff;
         }
 
         .settings-modal {
@@ -836,12 +1626,312 @@
             opacity: 1;
             transform: translateY(0) scale(1);
         }
+
+        .onboard-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 124;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .onboard-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .onboard-card {
+            width: min(520px, 92vw);
+            background: linear-gradient(160deg, #14141a 0%, #101115 70%);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 24px 70px rgba(0,0,0,0.7);
+            text-align: left;
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+            position: relative;
+            overflow: hidden;
+        }
+        .onboard-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .onboard-modal.open .onboard-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .onboard-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .onboard-logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            object-fit: cover;
+            user-select: none;
+            -webkit-user-drag: none;
+            pointer-events: none;
+        }
+        .onboard-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f4f4f5;
+        }
+        .onboard-subtitle {
+            color: #cbd5f5;
+            font-size: 0.9rem;
+            margin-top: 2px;
+        }
+        .onboard-steps {
+            display: grid;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .onboard-step {
+            display: none;
+            gap: 12px;
+        }
+        .onboard-step.active {
+            display: grid;
+        }
+        .onboard-progress {
+            font-size: 0.75rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+        .onboard-step-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+        .onboard-step-desc {
+            color: #cbd5f5;
+            font-size: 0.9rem;
+        }
+        .onboard-options {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .onboard-option {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: rgba(15, 23, 42, 0.35);
+            color: #e2e8f0;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: border-color var(--anim-fast) var(--ease-standard),
+                        background var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        box-shadow var(--anim-fast) var(--ease-standard);
+        }
+        .onboard-option:hover {
+            border-color: rgba(148, 163, 184, 0.4);
+            background: rgba(15, 23, 42, 0.55);
+        }
+        .onboard-option:active {
+            transform: scale(0.98);
+        }
+        .onboard-option.active {
+            border-color: var(--accent-primary);
+            background: rgba(15, 23, 42, 0.7);
+            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.25);
+        }
+        .onboard-option .accent-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 999px;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+        .onboard-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 125;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .welcome-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .welcome-card {
+            width: min(460px, 92vw);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 22px 60px rgba(0,0,0,0.65);
+            text-align: left;
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+        }
+        .welcome-modal.open .welcome-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .welcome-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .welcome-logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            object-fit: cover;
+        }
+        .welcome-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f4f4f5;
+        }
+        .welcome-text {
+            color: #cbd5f5;
+            font-size: 0.95rem;
+            margin: 8px 0 12px;
+        }
+        .welcome-list {
+            margin: 0 0 16px 18px;
+            color: #e4e4e7;
+            font-size: 0.9rem;
+        }
+        .welcome-list li { margin-bottom: 6px; }
+        .welcome-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .tour-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            display: none;
+            background: transparent;
+            backdrop-filter: none;
+            opacity: 0;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .tour-overlay.open {
+            display: block;
+            opacity: 1;
+        }
+        .tour-highlight {
+            position: absolute;
+            border: 2px solid var(--accent-primary);
+            border-radius: 10px;
+            box-shadow:
+                0 0 0 2px rgba(15, 15, 18, 0.7),
+                0 0 0 9999px rgba(0,0,0,0.55);
+            pointer-events: none;
+            transition-property: top, left, width, height;
+            transition-duration: 320ms;
+            transition-timing-function: var(--ease-smooth);
+            background: transparent;
+            will-change: top, left, width, height;
+        }
+        .tour-card {
+            position: absolute;
+            width: min(340px, 86vw);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 12px;
+            padding: 14px;
+            box-shadow: 0 18px 50px rgba(0,0,0,0.55);
+            color: #e4e4e7;
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            transition-property: top, left, transform, opacity;
+            transition-duration: 320ms;
+            transition-timing-function: var(--ease-smooth);
+            will-change: top, left;
+        }
+        .tour-overlay.open .tour-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .tour-card.switching {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .tour-title {
+            font-weight: 600;
+            color: #f4f4f5;
+        }
+        .tour-desc {
+            margin-top: 6px;
+            font-size: 0.9rem;
+            color: #cbd5f5;
+        }
+        .tour-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 12px;
+            gap: 10px;
+        }
+        .tour-progress {
+            font-size: 0.8rem;
+            color: #a1a1aa;
+        }
+        .tour-actions {
+            display: flex;
+            gap: 8px;
+        }
         .about-logo {
             width: 56px;
             height: 56px;
             border-radius: 12px;
             margin: 4px auto 12px auto;
             display: block;
+            user-select: none;
+            -webkit-user-drag: none;
         }
         .about-title {
             font-size: 1.2rem;
@@ -869,22 +1959,1128 @@
             justify-content: center;
             gap: 10px;
         }
-        .about-actions .primary-btn,
-        .about-actions .secondary-btn {
+        .primary-btn,
+        .secondary-btn {
             border-radius: 8px;
             padding: 8px 14px;
             border: 1px solid transparent;
             cursor: pointer;
             font-size: 0.85rem;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard),
+                        border-color var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard);
         }
-        .about-actions .primary-btn {
+        .primary-btn {
             background: var(--accent-primary);
             color: #fff;
         }
-        .about-actions .secondary-btn {
+        .secondary-btn {
             background: transparent;
             border-color: #3f3f46;
             color: #e4e4e7;
+        }
+        .primary-btn:hover { filter: brightness(1.05); }
+        .secondary-btn:hover { background: #27272a; color: #fff; }
+        .primary-btn:active,
+        .secondary-btn:active { transform: scale(0.98); }
+
+        .download-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 140;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .download-overlay.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .download-card {
+            width: min(520px, 92vw);
+            position: relative;
+            background: linear-gradient(160deg, #14141a 0%, #101115 70%);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            border-radius: 18px;
+            padding: 22px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+        }
+        .download-card::before {
+            content: "";
+            position: absolute;
+            inset: -30% -20% auto auto;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.28), rgba(59, 130, 246, 0) 70%);
+            pointer-events: none;
+            opacity: 0.7;
+        }
+        .download-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(255, 255, 255, 0.02), transparent 40%);
+            pointer-events: none;
+        }
+        .download-overlay.open .download-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .download-hero {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.16), rgba(15, 23, 42, 0.05));
+            border: 1px solid rgba(59, 130, 246, 0.18);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .download-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .download-file-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: linear-gradient(150deg, rgba(59, 130, 246, 0.18), rgba(17, 24, 39, 0.85));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            display: grid;
+            place-items: center;
+            color: var(--accent-primary);
+            font-size: 1.4rem;
+            flex-shrink: 0;
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.6), 0 10px 24px rgba(2, 6, 23, 0.55);
+        }
+        .download-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+        .download-meta {
+            color: #a1a1aa;
+            font-size: 0.82rem;
+            margin-top: 4px;
+        }
+        .download-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.6);
+            color: #cbd5f5;
+            font-size: 0.68rem;
+            letter-spacing: 0.04em;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+        .download-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            color: #9ca3af;
+            font-size: 0.78rem;
+        }
+        .download-meta-row .download-meta {
+            margin-top: 0;
+        }
+        .download-meta-row span:last-child {
+            color: #e2e8f0;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+        }
+        .download-progress-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .download-progress {
+            width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+            margin: 12px 0 10px;
+            box-shadow: inset 0 0 0 1px rgba(30, 41, 59, 0.5);
+            flex: 1;
+        }
+        .download-progress span {
+            display: block;
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), #60a5fa);
+            width: 0%;
+            transition: width var(--anim-fast) var(--ease-standard);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+        .download-percent {
+            text-align: right;
+            color: #e4e4e7;
+            font-size: 0.82rem;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            background: rgba(15, 23, 42, 0.6);
+            min-width: 64px;
+        }
+        .download-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin: 6px 0 14px;
+        }
+        .download-stat {
+            background: rgba(15, 23, 42, 0.35);
+            border: 1px solid rgba(148, 163, 184, 0.12);
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+        .download-stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        .download-stat-value {
+            font-size: 0.88rem;
+            color: #e2e8f0;
+        }
+        .download-steps {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 8px 0 16px 0;
+        }
+        .download-step {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #9ca3af;
+            font-size: 0.78rem;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(63, 63, 70, 0.5);
+            transition: color var(--anim-fast) var(--ease-standard),
+                        border-color var(--anim-fast) var(--ease-standard),
+                        background-color var(--anim-fast) var(--ease-standard);
+        }
+        .download-step .step-icon {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            border: 1px solid #3f3f46;
+            display: grid;
+            place-items: center;
+            font-size: 0.65rem;
+            color: #9ca3af;
+        }
+        .download-step.active {
+            color: #e4e4e7;
+            border-color: rgba(148, 163, 184, 0.35);
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .download-step.completed {
+            color: #a7f3d0;
+        }
+        .download-step.completed .step-icon {
+            border-color: #34d399;
+            color: #34d399;
+        }
+        .download-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .update-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 150;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .update-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .update-card {
+            width: min(480px, 92vw);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 22px 60px rgba(0,0,0,0.65);
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+            text-align: left;
+        }
+        .update-modal.open .update-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .update-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .update-header img {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+        }
+        .update-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .update-subtitle {
+            color: #a1a1aa;
+            font-size: 0.85rem;
+            margin-top: 2px;
+        }
+        .update-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .changelog-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 160;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .changelog-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .changelog-card {
+            width: min(860px, 94vw);
+            height: min(520px, 80vh);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 22px 60px rgba(0,0,0,0.65);
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 16px;
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+        }
+        .changelog-modal.open .changelog-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .changelog-left {
+            border-right: 1px solid #27272a;
+            padding-right: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .changelog-search {
+            background: #27272a;
+            border: 1px solid #3f3f46;
+            color: #fff;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+        .changelog-list {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .changelog-item {
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #d4d4d8;
+            font-size: 0.85rem;
+            transition: background-color var(--anim-fast) var(--ease-standard),
+                        border-color var(--anim-fast) var(--ease-standard),
+                        color var(--anim-fast) var(--ease-standard);
+        }
+        .changelog-item:hover {
+            background: #222228;
+        }
+        .changelog-item.active {
+            border-color: #3f3f46;
+            background: #222228;
+            color: #fff;
+        }
+        .changelog-latest {
+            background: var(--accent-glow);
+            color: #e7e5e5;
+            padding: 2px 6px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+        }
+        .changelog-right {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .changelog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .changelog-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .changelog-date {
+            color: #a1a1aa;
+            font-size: 0.8rem;
+        }
+        .changelog-body {
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+        .changelog-section {
+            margin-bottom: 14px;
+        }
+        .changelog-section h4 {
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: #e4e4e7;
+        }
+        .changelog-section ul {
+            margin-left: 16px;
+            color: #d4d4d8;
+            font-size: 0.85rem;
+        }
+        .changelog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .activity-panel {
+            position: fixed;
+            right: 16px;
+            bottom: 56px;
+            width: min(360px, 90vw);
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 12px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            padding: 10px;
+            z-index: 160;
+            opacity: 0;
+            transform: translateY(6px) scale(0.98);
+            pointer-events: none;
+            visibility: hidden;
+            transition: opacity var(--anim-fast) var(--ease-standard),
+                        transform var(--anim-fast) var(--ease-standard),
+                        visibility 0s linear var(--anim-fast);
+        }
+        .activity-panel.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+            visibility: visible;
+        }
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .activity-item {
+            display: grid;
+            grid-template-columns: 24px 1fr;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid #27272a;
+            background: #151518;
+        }
+        .activity-item.unread {
+            border-color: var(--accent-primary);
+        }
+        .activity-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 8px;
+            background: #222228;
+            display: grid;
+            place-items: center;
+            color: var(--accent-primary);
+            font-size: 0.9rem;
+        }
+        .activity-title {
+            font-size: 0.85rem;
+            color: #e4e4e7;
+        }
+        .activity-time {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+        .activity-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .activity-actions button {
+            font-size: 0.7rem;
+            padding: 4px 6px;
+            border-radius: 6px;
+            border: 1px solid #3f3f46;
+            background: transparent;
+            color: #e4e4e7;
+            cursor: pointer;
+        }
+        .activity-actions button:hover { background: #27272a; color: #fff; }
+        .activity-empty {
+            color: #a1a1aa;
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 16px 6px;
+        }
+        .activity-badge {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            background: var(--accent-primary);
+            color: #fff;
+            border-radius: 999px;
+            font-size: 0.65rem;
+            padding: 1px 5px;
+            display: none;
+        }
+        .activity-badge.show { display: inline-flex; }
+
+        .save-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 170;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .save-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .save-card {
+            width: min(420px, 90vw);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 22px 60px rgba(0,0,0,0.65);
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-smooth),
+                        transform var(--anim-mid) var(--ease-smooth);
+        }
+        .save-modal.open .save-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .save-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .save-message {
+            color: #a1a1aa;
+            font-size: 0.85rem;
+            margin-bottom: 14px;
+            white-space: pre-line;
+        }
+        .save-message.subtle {
+            margin-top: -8px;
+            font-size: 0.78rem;
+            color: #8b8b93;
+        }
+        .save-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .trash-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 140;
+            backdrop-filter: blur(6px);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        visibility 0s linear var(--anim-mid);
+        }
+        .trash-modal.open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+        }
+        .trash-card {
+            width: min(520px, 92vw);
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            opacity: 0;
+            transform: translateY(10px) scale(0.98);
+            transition: opacity var(--anim-mid) var(--ease-standard),
+                        transform var(--anim-mid) var(--ease-standard);
+        }
+        .trash-modal.open .trash-card {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .trash-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .trash-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .trash-list {
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .trash-item {
+            border: 1px solid #27272a;
+            border-radius: 10px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: #151518;
+        }
+        .trash-item-title {
+            font-size: 0.9rem;
+            color: #e4e4e7;
+        }
+        .trash-item-meta {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+        }
+        .trash-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .trash-empty {
+            color: #a1a1aa;
+            text-align: center;
+            padding: 16px 0;
+        }
+        .settings-page {
+            position: absolute;
+            inset: 0;
+            background: #0f0f11;
+            display: flex;
+            flex-direction: column;
+            z-index: 220;
+            opacity: 0;
+            transform: translateY(12px) scale(0.98);
+            pointer-events: none;
+            transition: opacity 200ms ease, transform 220ms ease;
+        }
+        .settings-page.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+        .settings-page.closing {
+            opacity: 0;
+            transform: translateY(12px) scale(0.98);
+            pointer-events: none;
+        }
+        .settings-header-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-bottom: 1px solid #27272a;
+            background: #0f0f11;
+        }
+        .settings-back {
+            background: transparent;
+            border: none;
+        }
+        .settings-title-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .settings-page-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            padding: 18px 20px 24px;
+            overflow-y: auto;
+        }
+        .settings-section {
+            border: 1px solid #27272a;
+            border-radius: 14px;
+            padding: 14px;
+            background: #151518;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .settings-section h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #e5e7eb;
+        }
+        .settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            background: #111114;
+            border: 1px solid #1f1f22;
+        }
+        .settings-item label {
+            font-size: 0.85rem;
+            color: #d4d4d8;
+        }
+        .settings-hint {
+            font-size: 0.75rem;
+            color: #a1a1aa;
+        }
+        .settings-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .settings-select,
+        .settings-input {
+            background: #0f0f11;
+            border: 1px solid #2b2b31;
+            color: #e4e4e7;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+        .settings-select {
+            appearance: none;
+            padding-right: 32px;
+            background-image:
+                linear-gradient(45deg, transparent 50%, rgba(226, 232, 240, 0.7) 50%),
+                linear-gradient(135deg, rgba(226, 232, 240, 0.7) 50%, transparent 50%);
+            background-position: calc(100% - 16px) 55%, calc(100% - 10px) 55%;
+            background-size: 6px 6px, 6px 6px;
+            background-repeat: no-repeat;
+        }
+        .settings-select:hover,
+        .settings-input:hover {
+            border-color: rgba(148, 163, 184, 0.5);
+            background: #121216;
+        }
+        .settings-select:focus,
+        .settings-input:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+        .settings-range {
+            width: 170px;
+            accent-color: var(--accent-primary);
+            cursor: pointer;
+        }
+        .settings-value {
+            min-width: 44px;
+            text-align: right;
+            font-family: var(--font-mono);
+            color: #a1a1aa;
+            font-size: 0.78rem;
+        }
+        .adaptive-accent-preview {
+            width: 22px;
+            height: 22px;
+            border-radius: 7px;
+            border: 1px solid #343844;
+            background: #1a1d25;
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.28);
+        }
+        .settings-bg-preview-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+        .settings-bg-preview {
+            --settings-bg-preview-image: linear-gradient(135deg, #171b25 0%, #10131a 60%, #121827 100%);
+            --settings-bg-preview-dim: 0.55;
+            --settings-bg-preview-blur: 0px;
+            width: 170px;
+            height: 96px;
+            border-radius: 10px;
+            border: 1px solid #2a2d37;
+            background: #0f1118;
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+        }
+        .settings-bg-preview::before,
+        .settings-bg-preview::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+        .settings-bg-preview::before {
+            z-index: 0;
+            background-image: var(--settings-bg-preview-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transform: scale(1.02);
+        }
+        .settings-bg-preview-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scale(1.02);
+            z-index: 1;
+            opacity: 0;
+            transition: opacity var(--anim-mid) var(--ease-standard);
+            pointer-events: none;
+        }
+        .settings-bg-preview.has-video .settings-bg-preview-video {
+            opacity: 1;
+        }
+        .settings-bg-preview::after {
+            z-index: 2;
+            background: rgba(8, 10, 14, var(--settings-bg-preview-dim));
+            backdrop-filter: blur(var(--settings-bg-preview-blur));
+        }
+        .settings-preview-caption {
+            font-size: 0.72rem;
+            color: #9ca3af;
+            font-family: var(--font-mono);
+        }
+        .settings-dropdown {
+            position: relative;
+            min-width: 140px;
+        }
+        .dropdown-trigger {
+            width: 100%;
+            background: #0f0f11;
+            border: 1px solid #2b2b31;
+            color: #e4e4e7;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+        .dropdown-trigger i {
+            font-size: 1rem;
+            color: #a1a1aa;
+        }
+        .dropdown-trigger:hover {
+            border-color: rgba(148, 163, 184, 0.5);
+            background: #121216;
+        }
+        .dropdown-trigger:focus-visible {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            background: #141417;
+            border: 1px solid #2b2b31;
+            border-radius: 10px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 160px;
+            z-index: 5;
+            opacity: 0;
+            transform: translateY(-4px);
+            pointer-events: none;
+            transition: opacity 160ms ease, transform 160ms ease;
+        }
+        .settings-dropdown.open .dropdown-menu {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        .dropdown-item {
+            background: transparent;
+            border: none;
+            color: #e4e4e7;
+            text-align: left;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .dropdown-item:hover,
+        .dropdown-item.active {
+            background: var(--accent-glow);
+            color: #ffffff;
+        }
+        .settings-page .switch {
+            --button-width: 3.5em;
+            --button-height: 2em;
+            --toggle-diameter: 1.5em;
+            --button-toggle-offset: calc((var(--button-height) - var(--toggle-diameter)) / 2);
+            --toggle-shadow-offset: 10px;
+            --toggle-wider: 3em;
+            --color-grey: #2b2b31;
+            --color-green: #4296f4;
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .settings-page .switch input[type="checkbox"] {
+            display: none;
+        }
+        .settings-page .slider {
+            display: inline-block;
+            width: var(--button-width);
+            height: var(--button-height);
+            background-color: var(--color-grey);
+            border-radius: calc(var(--button-height) / 2);
+            position: relative;
+            transition: 0.3s all ease-in-out;
+            cursor: pointer;
+        }
+        .settings-page .slider::after {
+            content: "";
+            display: inline-block;
+            width: var(--toggle-diameter);
+            height: var(--toggle-diameter);
+            background-color: #fff;
+            border-radius: calc(var(--toggle-diameter) / 2);
+            position: absolute;
+            top: var(--button-toggle-offset);
+            transform: translateX(var(--button-toggle-offset));
+            box-shadow: var(--toggle-shadow-offset) 0 calc(var(--toggle-shadow-offset) * 4) rgba(0, 0, 0, 0.1);
+            transition: 0.3s all ease-in-out;
+        }
+        .settings-page .switch input[type="checkbox"]:checked + .slider {
+            background-color: var(--accent-primary);
+        }
+        .settings-page .switch input[type="checkbox"]:checked + .slider::after {
+            transform: translateX(calc(var(--button-width) - var(--toggle-diameter) - var(--button-toggle-offset)));
+            box-shadow: calc(var(--toggle-shadow-offset) * -1) 0 calc(var(--toggle-shadow-offset) * 4) rgba(0, 0, 0, 0.1);
+        }
+        .settings-page .switch input[type="checkbox"]:active + .slider::after {
+            width: var(--toggle-wider);
+        }
+        .settings-page .switch input[type="checkbox"]:checked:active + .slider::after {
+            transform: translateX(calc(var(--button-width) - var(--toggle-wider) - var(--button-toggle-offset)));
+        }
+        .spell-menu {
+            position: fixed;
+            min-width: 180px;
+            background: #111114;
+            border: 1px solid #2b2b31;
+            border-radius: 12px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.55);
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            opacity: 0;
+            transform: translateY(-6px) scale(0.98);
+            pointer-events: none;
+            z-index: 300;
+            transition: opacity 140ms ease, transform 140ms ease;
+        }
+        .spell-menu.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+        .spell-menu .spell-item {
+            background: transparent;
+            border: none;
+            color: #e4e4e7;
+            text-align: left;
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .spell-menu .spell-item:hover {
+            background: #1f2937;
+            color: #fff;
+        }
+        .spell-menu .spell-item.disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+        .spell-menu .spell-divider {
+            height: 1px;
+            background: #2b2b31;
+            margin: 4px 2px;
+        }
+        .settings-chip {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: #1f2937;
+            color: #e5e7eb;
+            font-size: 0.75rem;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+        .settings-chip.active {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+        .danger-btn {
+            background: #3f1f1f;
+            color: #fecaca;
+            border: 1px solid #7f1d1d;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .settings-page-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #27272a;
+            color: #71717a;
+            font-size: 0.75rem;
+        }
+        .trash-page {
+            z-index: 221;
+        }
+        .trash-page-body {
+            padding: 18px 20px 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .trash-page .trash-section {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        .trash-page [data-trash-title] {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .trash-page-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+        .trash-page .trash-list {
+            max-height: none;
+            min-height: 320px;
+        }
+        .trash-page .trash-empty {
+            padding: 34px 0;
+        }
+        @media (max-width: 900px) {
+            .settings-page-body {
+                grid-template-columns: 1fr;
+            }
+            .trash-page-body {
+                padding: 14px 14px 18px;
+            }
         }
 
         /* --- Footer Status Bar --- */
@@ -903,6 +3099,7 @@
             left: 0;
             right: 0;
             bottom: 0;
+            user-select: none;
         }
 
         .footer-left, .footer-right { display: flex; align-items: center; gap: 16px; }
@@ -912,7 +3109,7 @@
 
         .lp-toast {
             position: fixed;
-            right: 18px;
+            left: 18px;
             bottom: 48px;
             background: #18181b;
             border: 1px solid #3f3f46;
@@ -929,6 +3126,13 @@
                         transform var(--anim-fast) var(--ease-standard);
             z-index: 300;
             min-width: 220px;
+        }
+        .lp-toast.error {
+            border-color: #7f1d1d;
+            background: #1b1212;
+        }
+        .lp-toast.error .toast-progress {
+            background: #ef4444;
         }
         .lp-toast.show {
             opacity: 1;
@@ -977,9 +3181,12 @@
 <body>
 
     <div class="app-window">
+        <div class="app-bg-video" aria-hidden="true">
+            <video data-app-bg-video muted loop playsinline preload="auto"></video>
+        </div>
         <header>
-            <div class="menubar">
-                <img src="logo/LucidPad.png" alt="LP" class="app-logo">
+            <div class="menubar" data-tour="menubar">
+                <img src="logo/LucidPad.png" alt="LP" class="app-logo" draggable="false">
                 <div class="menu-item" data-menu="file">
                     <span class="menu-label">File</span>
                     <div class="menu-dropdown">
@@ -987,6 +3194,7 @@
                         <button data-action="file:open">Open… <span class="menu-shortcut">Ctrl+O</span></button>
                         <button data-action="file:save">Save <span class="menu-shortcut">Ctrl+S</span></button>
                         <button data-action="file:saveAs">Save As… <span class="menu-shortcut">Ctrl+Shift+S</span></button>
+                        <button data-action="file:trash">Trash</button>
                         <button data-action="file:closeTab">Close Tab <span class="menu-shortcut">Ctrl+W</span></button>
                         <button data-action="app:quit">Quit <span class="menu-shortcut">Alt+F4</span></button>
                     </div>
@@ -1012,118 +3220,178 @@
                         <button data-action="view:zoomOut">Zoom Out <span class="menu-shortcut">Ctrl+-</span></button>
                         <button data-action="view:zoomReset">Zoom Reset <span class="menu-shortcut">Ctrl+0</span></button>
                         <button data-action="view:fullscreen">Toggle Fullscreen <span class="menu-shortcut">F11</span></button>
-                        <button data-action="view:zen">Toggle Zen Mode</button>
-                    </div>
-                </div>
-                <div class="menu-item" data-menu="go">
-                    <span class="menu-label">Go</span>
-                    <div class="menu-dropdown">
-                        <button data-action="go:line">Go to Line <span class="menu-shortcut">Ctrl+G</span></button>
+                        <button data-action="view:zen">Toggle View Mode</button>
                     </div>
                 </div>
                 <div class="menu-item" data-menu="help">
-                    <span class="menu-label">Help</span>
+                    <span class="menu-label">More</span>
                     <div class="menu-dropdown">
                         <button data-action="help:about">About</button>
+                        <button data-action="help:changelog">Changelog</button>
                     </div>
+                </div>
+                <div class="menu-spacer" aria-hidden="true"></div>
+                <div class="window-controls" aria-label="Window controls">
+                    <button class="window-control-btn" data-action="window:minimize" aria-label="Minimize" data-no-tooltip>
+                        <i data-lucide="minus"></i>
+                    </button>
+                    <button class="window-control-btn" data-action="window:toggleMaximize" data-window-max-btn aria-label="Maximize" data-no-tooltip>
+                        <i data-lucide="square"></i>
+                    </button>
+                    <button class="window-control-btn close" data-action="window:close" aria-label="Close" data-no-tooltip>
+                        <i data-lucide="x"></i>
+                    </button>
                 </div>
             </div>
 
             <div class="header-toolbar">
-                <div class="tabs-container">
-                    <div class="tabs"></div>
-                    <button class="icon-btn" title="New Tab"><i class="ri-add-line"></i></button>
+                <div class="tabs-container" data-tour="tabs">
+                    <button class="tabs-arrow tabs-arrow-left" title="Scroll left">
+                        <i data-lucide="chevron-left"></i>
+                    </button>
+                    <div class="tabs-viewport">
+                        <div class="tabs"></div>
+                        <div class="tabs-fade left"></div>
+                        <div class="tabs-fade right"></div>
+                    </div>
+                    <button class="tabs-arrow tabs-arrow-right" title="Scroll right">
+                        <i data-lucide="chevron-right"></i>
+                    </button>
+                    <button class="icon-btn" title="New Tab"><i data-lucide="plus"></i></button>
                 </div>
 
-                <div class="header-actions">
-                    <button class="icon-btn" title="Search all files" data-action="search"><i class="ri-search-line"></i></button>
-                    <button class="icon-btn" title="Markdown Preview" data-action="preview-toggle"><i class="ri-layout-column-line"></i></button>
-                    <button class="icon-btn" title="Zen Mode" data-action="zen-toggle"><i class="ri-fullscreen-line"></i></button>
-                    <button class="icon-btn" title="Export PDF" data-action="export-menu"><i class="ri-share-forward-line"></i></button>
+                <div class="header-actions" data-tour="quick-actions">
+                    <button class="icon-btn" title="Search all files" data-action="search" data-tour="search"><i data-lucide="search"></i></button>
+                    <button class="icon-btn" title="Side Panel" data-action="preview-toggle" data-tour="side-panel"><i data-lucide="columns-2"></i></button>
+                    <button class="icon-btn" title="View Mode" data-action="zen-toggle"><i data-lucide="maximize"></i></button>
                     <div class="divider"></div>
-                    <button class="icon-btn" title="Settings" data-action="settings-open"><i class="ri-settings-3-line"></i></button>
+                    <button class="icon-btn" title="Settings" data-action="settings-open" data-tour="settings"><i data-lucide="settings"></i></button>
                 </div>
             </div>
         </header>
 
         <div class="editor-shell">
-        <div class="export-dropdown" id="export-dropdown">
-            <button data-export="txt">Export as TXT</button>
-            <button data-export="html">Export as HTML</button>
-            <button data-export="pdf">Export as PDF</button>
-        </div>
         <div class="find-widget">
-            <i class="ri-arrow-down-s-line" style="color: #71717a;"></i>
+            <i style="color: #71717a;" data-lucide="chevron-down"></i>
             <input type="text" class="find-input" value="" placeholder="Find">
             <div class="divider"></div>
             <span class="find-count">0/0</span>
-            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i class="ri-arrow-up-line"></i></button>
-            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i class="ri-arrow-down-line"></i></button>
-            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i class="ri-close-line"></i></button>
+            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i data-lucide="chevron-up"></i></button>
+            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i data-lucide="chevron-down"></i></button>
+            <button class="icon-btn" style="width:20px; height:20px; font-size:0.8rem;"><i data-lucide="x"></i></button>
         </div>
 
-        <main class="editor-area" contenteditable="true" spellcheck="false" data-plain="true">
-            <h1>LucidPad 2.2.0</h1>
-            
-            <p>
-                Say hello to the most feature-packed and aesthetic version of <span class="highlight-badge">LucidPad</span> yet! This release <span class="link-text">turbocharges your productivity</span> and takes your notes to the next dimension. It's <span class="version-badge">v2.2.0</span>.
-            </p>
+        <div class="editor-scroll custom-scroll">
+        <main class="editor-area" spellcheck="false" data-plain="true" data-tour="editor"></main>
+        <div class="line-highlight" data-line-highlight></div>
+        </div>
 
-            <ol>
-                <li>Get a cleaner, bluer interface this time with <span class="highlight-badge">Dark Mode</span> enabled.</li>
-                <li>
-                    <span><span style="margin-right:8px">🔗</span><span class="link-text" style="font-weight: 500; color: #fff;">Links Editor</span> – Manage and edit links like a pro.</span>
-                </li>
-                <li>
-                    <span><span style="margin-right:8px">🧠</span>Mermaid & PlantUML – Visualize ideas with flowcharts.</span>
-                </li>
-                <li>
-                    <span><span style="margin-right:8px">🔥</span>Embed Anything – Drop in videos, websites, and magic!</span>
-                </li>
-                <li>
-                    <span><span style="margin-right:8px">🔊</span>Let your notes speak with pause / stop and a visualizer.</span>
-                </li>
-                <li>
-                    <span><span style="margin-right:8px">✏️</span>Better Formatting – Math-Blocks, Underline etc.</span>
-                </li>
-            </ol>
-            
-            <p>Go ahead, click here and start typing...</p>
-        </main>
-        <aside class="preview-panel" aria-hidden="true">
-            <div class="preview-content"></div>
+        <div id="tiptap-bubble" class="tiptap-bubble" role="toolbar" aria-label="Quick formatting">
+            <button class="bubble-btn" data-action="bold" type="button" title="Bold">B</button>
+            <button class="bubble-btn" data-action="italic" type="button" title="Italic">I</button>
+            <button class="bubble-btn" data-action="underline" type="button" title="Underline">U</button>
+            <button class="bubble-btn" data-action="strike" type="button" title="Strike">S</button>
+            <button class="bubble-btn" data-action="highlight" type="button" title="Highlight">HL</button>
+            <button class="bubble-btn" data-action="code" type="button" title="Code">&lt;/&gt;</button>
+        </div>
+        <div class="plain-editor" data-plain-editor>
+        <div class="plain-scroll" data-plain-scroll>
+        <canvas class="plain-canvas" data-plain-canvas></canvas>
+        <div class="plain-spacer" data-plain-spacer></div>
+        </div>
+        <textarea class="plain-input" data-plain-input spellcheck="false"></textarea>
+        </div>
+        <div class="outline-resizer" data-outline-resizer></div>
+        <aside class="outline-panel" aria-hidden="true">
+            <div class="outline-header">
+                <div class="outline-title">Side Panel</div>
+            </div>
+            <div class="outline-section">
+                <h4>Outline</h4>
+                <div class="outline-list custom-scroll" data-outline-list></div>
+            </div>
+            <div class="outline-section">
+                <h4>Backlinks</h4>
+                <div class="backlinks-list custom-scroll" data-backlinks-list></div>
+            </div>
+            <div class="outline-section">
+                <h4>Tags</h4>
+                <div class="tag-chips" data-tag-chips></div>
+            </div>
+            <div class="outline-section">
+                <h4>Note info</h4>
+                <div class="note-info">
+                    <div data-note-words></div>
+                    <div data-note-chars></div>
+                    <div data-note-reading></div>
+                    <div data-note-updated></div>
+                </div>
+            </div>
         </aside>
 
-        <div class="floating-toolbar">
-            <div class="font-selector" data-tooltip="Headings">
-                Headings
-                <i class="ri-arrow-down-s-line"></i>
+        <div class="floating-toolbar" data-tour="toolbar" data-toolbar-layout="ide">
+            <button class="tool-btn" data-action="undo" data-tooltip="Undo"><i data-lucide="undo-2"></i></button>
+            <button class="tool-btn" data-action="redo" data-tooltip="Redo"><i data-lucide="redo-2"></i></button>
+            <span class="toolbar-sep">|</span>
+
+            <div class="toolbar-dropdown-group">
+                <button class="toolbar-trigger" type="button" data-dropdown-trigger="heading" data-tooltip="Heading" aria-haspopup="true" aria-expanded="false" title="Heading">
+                    <span class="tool-text">H</span>
+                    <i data-lucide="chevron-down"></i>
+                </button>
+                <div class="toolbar-dropdown toolbar-menu-row" data-dropdown-menu="heading" aria-hidden="true">
+                    <button class="tool-menu-item" data-action="format:title"><span class="tool-text">H1</span></button>
+                    <button class="tool-menu-item" data-action="format:subtitle"><span class="tool-text">H2</span></button>
+                    <button class="tool-menu-item" data-action="format:heading"><span class="tool-text">H3</span></button>
+                    <span class="toolbar-sep">|</span>
+                    <button class="tool-menu-item" data-action="blockquote"><i class="tool-icon" data-lucide="quote"></i></button>
+                </div>
             </div>
-            <div class="divider"></div>
-            <button class="tool-btn" title="Bold (Ctrl+B)" data-action="bold" data-tooltip="Bold"><i class="ri-bold"></i></button>
-            <button class="tool-btn" title="Italic (Ctrl+I)" data-action="italic" data-tooltip="Italic"><i class="ri-italic"></i></button>
-            <button class="tool-btn" title="Underline (Ctrl+U)" data-action="underline" data-tooltip="Underline"><i class="ri-underline"></i></button>
-            <div class="divider"></div>
-            <button class="tool-btn active" title="Align Left" data-action="align-left" data-tooltip="Align Left"><i class="ri-align-left"></i></button>
-            <button class="tool-btn" title="Align Center" data-action="align-center" data-tooltip="Align Center"><i class="ri-align-center"></i></button>
-            <button class="tool-btn" title="Align Right" data-action="align-right" data-tooltip="Align Right"><i class="ri-align-right"></i></button>
-            <div class="divider"></div>
-            <button class="tool-btn" title="Bullet List" data-action="list" data-tooltip="Bullet List"><i class="ri-list-unordered"></i></button>
-            <button class="tool-btn" title="Checklist" data-action="checklist" data-tooltip="Checklist"><i class="ri-checkbox-line"></i></button>
-            <button class="tool-btn" title="Insert Link (Ctrl+K)" data-action="link" data-tooltip="Insert Link"><i class="ri-link"></i></button>
-            <div class="divider"></div>
-            <button class="tool-btn" title="Undo (Ctrl+Z)" data-action="undo" data-tooltip="Undo"><i class="ri-arrow-go-back-line"></i></button>
-            <button class="tool-btn" title="Redo (Ctrl+Y)" data-action="redo" data-tooltip="Redo"><i class="ri-arrow-go-forward-line"></i></button>
-            <button class="tool-btn" title="Clear Formatting" data-action="clear" data-tooltip="Clear Formatting"><i class="ri-format-clear"></i></button>
-            <div class="divider"></div>
-            <button class="tool-btn" title="Word Wrap" data-action="word-wrap" data-tooltip="Word Wrap"><i class="ri-text-wrap"></i></button>
+            <span class="toolbar-sep">|</span>
+
+            <button class="tool-btn" data-action="list:bullet" data-tooltip="Bullet List"><i data-lucide="list"></i></button>
+            <button class="tool-btn" data-action="list:number" data-tooltip="Numbered List"><i data-lucide="list-ordered"></i></button>
+            <button class="tool-btn" data-action="list:check" data-tooltip="Checklist"><i data-lucide="square-check-big"></i></button>
+            <span class="toolbar-sep">|</span>
+
+            <button class="tool-btn" data-action="bold" data-tooltip="Bold"><i data-lucide="bold"></i></button>
+            <button class="tool-btn" data-action="italic" data-tooltip="Italic"><i data-lucide="italic"></i></button>
+            <button class="tool-btn" data-action="strike" data-tooltip="Strikethrough"><i data-lucide="strikethrough"></i></button>
+            <button class="tool-btn" data-action="code" data-tooltip="Inline Code"><i data-lucide="code-xml"></i></button>
+            <button class="tool-btn" data-action="underline" data-tooltip="Underline"><i data-lucide="underline"></i></button>
+            <span class="toolbar-sep">|</span>
+
+            <button class="tool-btn" data-action="highlight" data-tooltip="Highlight"><i data-lucide="highlighter"></i></button>
+            <span class="toolbar-sep">|</span>
+
+            <button class="tool-btn" data-action="superscript" data-tooltip="Superscript"><span class="tool-text">x&sup2;</span></button>
+            <button class="tool-btn" data-action="subscript" data-tooltip="Subscript"><span class="tool-text">x&#8322;</span></button>
+            <span class="toolbar-sep">|</span>
+
+            <button class="tool-btn" data-action="align-left" data-tooltip="Align Left"><i data-lucide="align-left"></i></button>
+            <button class="tool-btn" data-action="align-center" data-tooltip="Align Center"><i data-lucide="align-center"></i></button>
+            <button class="tool-btn" data-action="align-right" data-tooltip="Align Right"><i data-lucide="align-right"></i></button>
+
+            <span class="toolbar-spacer"></span>
+
+            <div class="toolbar-dropdown-group">
+                <button class="toolbar-trigger" type="button" data-dropdown-trigger="insert" data-tooltip="Insert" aria-haspopup="true" aria-expanded="false" title="Insert">
+                    <i data-lucide="plus"></i>
+                </button>
+                <div class="toolbar-dropdown toolbar-menu-row" data-dropdown-menu="insert" aria-hidden="true">
+                    <button class="tool-menu-item" data-action="horizontal-rule"><i class="tool-icon" data-lucide="minus"></i></button>
+                </div>
+            </div>
+
+            <input class="color-input" type="color" data-color-input="text" aria-label="Text color">
+            <input class="color-input" type="color" data-color-input="highlight" aria-label="Background color">
         </div>
 
         <div class="settings-modal" id="settings-modal" aria-hidden="true">
             <div class="settings-card">
                 <div class="settings-header">
                     <div class="settings-title">Settings</div>
-                    <button class="icon-btn" data-action="settings-close"><i class="ri-close-line"></i></button>
+                    <button class="icon-btn settings-close-btn" data-action="settings-close"><i data-lucide="x"></i></button>
                 </div>
                 <div class="settings-row">
                     <label>Auto-save</label>
@@ -1132,14 +3400,6 @@
                 <div class="settings-row">
                     <label>Word wrap</label>
                     <div class="toggle" data-setting="wordwrap"></div>
-                </div>
-                <div class="settings-row">
-                    <label>Tab size</label>
-                    <select data-setting="tabsize">
-                        <option value="2">2 spaces</option>
-                        <option value="4">4 spaces</option>
-                        <option value="8">8 spaces</option>
-                    </select>
                 </div>
                 <div class="settings-row">
                     <label>Accent color</label>
@@ -1151,12 +3411,94 @@
                 </div>
             </div>
         </div>
+        <div class="onboard-modal" id="onboard-modal" aria-hidden="true">
+            <div class="onboard-card" role="dialog" aria-modal="true" aria-label="Quick setup">
+                <div class="onboard-header">
+                    <img src="logo/LucidPad.png" alt="LucidPad" class="onboard-logo">
+                    <div>
+                        <div class="onboard-title" data-onboard-title>Quick setup</div>
+                        <div class="onboard-subtitle" data-onboard-subtitle>Choose a few basics before we start.</div>
+                    </div>
+                </div>
+                <div class="onboard-steps">
+                    <div class="onboard-step active" data-onboard-step="language">
+                        <div class="onboard-progress" data-onboard-progress>Step 1 of 2</div>
+                        <div class="onboard-step-title" data-onboard-language-title>Choose language</div>
+                        <div class="onboard-step-desc" data-onboard-language-desc>Pick the language for menus and tips.</div>
+                        <div class="onboard-options">
+                            <button class="onboard-option" data-onboard-language="English">
+                                <span data-onboard-language-label="English">English</span>
+                            </button>
+                            <button class="onboard-option" data-onboard-language="Mongolian">
+                                <span data-onboard-language-label="Mongolian">Монгол</span>
+                            </button>
+                            <button class="onboard-option" data-onboard-language="Japanese">
+                                <span data-onboard-language-label="Japanese">日本語</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="onboard-step" data-onboard-step="accent">
+                        <div class="onboard-progress" data-onboard-progress>Step 2 of 2</div>
+                        <div class="onboard-step-title" data-onboard-accent-title>Choose accent color</div>
+                        <div class="onboard-step-desc" data-onboard-accent-desc>Set the highlight color for buttons and focus.</div>
+                        <div class="onboard-options">
+                            <button class="onboard-option" data-onboard-accent="blue">
+                                <span class="accent-dot" style="background:#3b82f6;"></span>
+                                <span data-onboard-accent-label="blue">Blue</span>
+                            </button>
+                            <button class="onboard-option" data-onboard-accent="green">
+                                <span class="accent-dot" style="background:#22c55e;"></span>
+                                <span data-onboard-accent-label="green">Green</span>
+                            </button>
+                            <button class="onboard-option" data-onboard-accent="purple">
+                                <span class="accent-dot" style="background:#a855f7;"></span>
+                                <span data-onboard-accent-label="purple">Purple</span>
+                            </button>
+                            <button class="onboard-option" data-onboard-accent="orange">
+                                <span class="accent-dot" style="background:#f97316;"></span>
+                                <span data-onboard-accent-label="orange">Orange</span>
+                            </button>
+                            <button class="onboard-option" data-onboard-accent="red">
+                                <span class="accent-dot" style="background:#ef4444;"></span>
+                                <span data-onboard-accent-label="red">Red</span>
+                            </button>
+                            <button class="onboard-option" data-onboard-accent="teal">
+                                <span class="accent-dot" style="background:#14b8a6;"></span>
+                                <span data-onboard-accent-label="teal">Teal</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="onboard-actions">
+                    <button class="secondary-btn" data-onboard-action="back">Back</button>
+                    <button class="primary-btn" data-onboard-action="next">Next</button>
+                </div>
+            </div>
+        </div>
+        <div class="welcome-modal" id="welcome-modal" aria-hidden="true">
+            <div class="welcome-card" role="dialog" aria-modal="true" aria-label="Welcome tips">
+                <div class="welcome-header">
+                    <img src="logo/LucidPad.png" alt="LucidPad" class="welcome-logo">
+                    <div class="welcome-title">Welcome to LucidPad</div>
+                </div>
+                <div class="welcome-text">A few quick tips to get you started:</div>
+                <ul class="welcome-list">
+                    <li>Use the toolbar for headings and lists.</li>
+                    <li>Press <strong>Ctrl+F</strong> to search your note.</li>
+                    <li>Side Panel shows Outline, tags, and note info.</li>
+                </ul>
+                <div class="welcome-actions">
+                    <button class="secondary-btn" data-welcome-action="tour">Start tour</button>
+                    <button class="primary-btn" data-welcome-action="close">Got it</button>
+                </div>
+            </div>
+        </div>
         <div class="about-modal" id="about-modal" aria-hidden="true">
             <div class="about-card" role="dialog" aria-modal="true" aria-label="About LucidPad">
                 <img src="logo/LucidPad.png" alt="LucidPad Logo" class="about-logo">
                 <div class="about-title">LucidPad</div>
                 <div class="about-version" data-about-version>Version</div>
-                <div class="about-description">A modern, minimal editor built with Electron.</div>
+                <div class="about-description">Still in progress. More coming soon.</div>
                 <div class="about-meta" data-about-author></div>
                 <div class="about-actions">
                     <button class="secondary-btn" data-action="about-updates">Check for updates</button>
@@ -1164,6 +3506,480 @@
                 </div>
             </div>
         </div>
+        <div class="download-overlay" id="download-overlay" aria-hidden="true">
+            <div class="download-card">
+                <div class="download-hero">
+                    <div class="download-header">
+                        <div class="download-file-icon"><i data-download-icon data-lucide="file"></i></div>
+                        <div>
+                            <div class="download-title">Downloading... <span class="download-badge" data-download-badge>FILE</span></div>
+                        </div>
+                    </div>
+                    <div class="download-meta-row">
+                        <div class="download-meta" data-download-filename>file</div>
+                        <span>Secure transfer</span>
+                    </div>
+                </div>
+                <div class="download-progress-row">
+                    <div class="download-progress"><span data-download-bar></span></div>
+                    <div class="download-percent" data-download-percent>0%</div>
+                </div>
+                <div class="download-stats">
+                    <div class="download-stat">
+                        <div class="download-stat-label">Transferred</div>
+                        <div class="download-stat-value" data-download-stats>0% - 0/0</div>
+                    </div>
+                    <div class="download-stat">
+                        <div class="download-stat-label">Speed</div>
+                        <div class="download-stat-value" data-download-speed>0 KB/s - ETA --:--</div>
+                    </div>
+                </div>
+                <div class="download-steps">
+                    <div class="download-step" data-download-step="downloading">
+                        <span class="step-icon"><i data-step-icon data-step-default="download" data-lucide="download"></i></span>
+                        <span>Downloading</span>
+                    </div>
+                    <div class="download-step" data-download-step="verifying">
+                        <span class="step-icon"><i data-step-icon data-step-default="shield-check" data-lucide="shield-check"></i></span>
+                        <span>Verifying</span>
+                    </div>
+                    <div class="download-step" data-download-step="ready">
+                        <span class="step-icon"><i data-step-icon data-step-default="check" data-lucide="check"></i></span>
+                        <span>Ready</span>
+                    </div>
+                </div>
+                <div class="download-actions">
+                    <button class="secondary-btn" data-download-action="pause">Pause</button>
+                    <button class="secondary-btn" data-download-action="open">Open folder</button>
+                    <button class="primary-btn" data-download-action="cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+        <div class="update-modal" id="update-modal" aria-hidden="true">
+            <div class="update-card">
+                <div class="update-header">
+                    <img src="logo/LucidPad.png" alt="LucidPad">
+                    <div>
+                        <div class="update-title">A new version of LucidPad is available.</div>
+                        <div class="update-subtitle" data-update-version>Version X.X.X includes performance improvements and new features.</div>
+                    </div>
+                </div>
+                <div class="update-actions">
+                    <button class="secondary-btn" data-update-action="later">Later</button>
+                    <button class="primary-btn" data-update-action="now">Update now</button>
+                </div>
+            </div>
+        </div>
+        <div class="changelog-modal" id="changelog-modal" aria-hidden="true">
+            <div class="changelog-card">
+                <div class="changelog-left">
+                    <input class="changelog-search" type="text" placeholder="Search versions..." data-changelog-search>
+                    <div class="changelog-list custom-scroll" data-changelog-list></div>
+                </div>
+                <div class="changelog-right">
+                    <div class="changelog-header">
+                        <div>
+                            <div class="changelog-title" data-changelog-title>Changelog</div>
+                            <div class="changelog-date" data-changelog-date></div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button class="secondary-btn" data-changelog-action="copy">Copy release notes</button>
+                            <button class="icon-btn" data-changelog-action="close" title="Close"><i data-lucide="x"></i></button>
+                        </div>
+                    </div>
+                    <div class="changelog-body custom-scroll" data-changelog-body></div>
+                    <div class="changelog-actions"></div>
+                </div>
+            </div>
+        </div>
+        <div class="save-modal" id="save-modal" aria-hidden="true">
+            <div class="save-card">
+                <div class="save-title">Save changes?</div>
+                <div class="save-message" data-save-message>This note has unsaved changes.</div>
+                <div class="save-actions">
+                    <button class="secondary-btn" data-save-action="cancel">Cancel</button>
+                    <button class="secondary-btn" data-save-action="dont-save">Don't save</button>
+                    <button class="primary-btn" data-save-action="save">Save</button>
+                </div>
+            </div>
+        </div>
+        <div class="save-modal" id="format-modal" aria-hidden="true">
+            <div class="save-card">
+                <div class="save-title">Save as</div>
+                <div class="save-message">Choose a format for this note.</div>
+                <div class="save-message subtle">Rich formatting detected. Markdown keeps headings, lists, links, and emphasis. Text removes formatting.</div>
+                <div class="save-actions">
+                    <button class="secondary-btn" data-format-action="cancel">Cancel</button>
+                    <button class="primary-btn" data-format-action="txt">Text (.txt)</button>
+                    <button class="secondary-btn" data-format-action="md">Markdown (.md)</button>
+                </div>
+            </div>
+        </div>
+        <div class="save-modal" id="missing-file-modal" aria-hidden="true">
+            <div class="save-card">
+                <div class="save-title">File not found</div>
+                <div class="save-message" data-missing-message>Cannot find the file.</div>
+                <div class="save-actions">
+                    <button class="primary-btn" data-missing-action="ok">OK</button>
+                </div>
+            </div>
+        </div>
+        <section class="settings-page trash-page" data-trash-page aria-hidden="true">
+            <div class="settings-header-bar">
+                <button class="icon-btn settings-back trash-back" data-trash-action="close" title="Close"><i data-lucide="x"></i></button>
+                <div class="settings-title-text" data-trash-title>Trash</div>
+            </div>
+            <div class="trash-page-body">
+                <div class="settings-section trash-section">
+                    <div class="trash-page-toolbar">
+                        <button class="secondary-btn" data-trash-action="clear">Clear All</button>
+                    </div>
+                    <div class="trash-list custom-scroll" data-trash-list></div>
+                </div>
+            </div>
+            <div class="settings-page-footer" data-trash-footer>Closed tabs are kept locally on this device.</div>
+        </section>
+        <div class="spell-menu" id="spell-menu" aria-hidden="true">
+            <div class="spell-items" data-spell-items></div>
+        </div>
+        <button class="viewmode-exit" data-action="zen-exit" aria-label="Turn off View Mode" data-no-tooltip>
+            <i data-lucide="x"></i>
+            <span class="viewmode-exit-label">Turn off View Mode</span>
+        </button>
+        <section class="settings-page" data-settings-page aria-hidden="true">
+            <div class="settings-header-bar">
+                <button class="icon-btn settings-back" title="Close"><i data-lucide="x"></i></button>
+                <div class="settings-title-text">Settings</div>
+            </div>
+            <div class="settings-page-body">
+                <div class="settings-section">
+                    <h3>General</h3>
+                    <div class="settings-item">
+                        <div>
+                            <label>Check for updates automatically</label>
+                            <div class="settings-hint">Keep LucidPad up to date</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="auto-update">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Language</label>
+                            <div class="settings-hint">Select app language</div>
+                        </div>
+                        <div class="settings-control">
+                            <div class="settings-dropdown" data-settings-dropdown data-setting="language" data-value="English">
+                                <button class="dropdown-trigger" type="button">
+                                    <span>English</span>
+                                    <i data-lucide="chevron-down"></i>
+                                </button>
+                                <div class="dropdown-menu">
+                                    <button class="dropdown-item active" type="button" data-value="English">English</button>
+                                    <button class="dropdown-item" type="button" data-value="Mongolian">Mongolian</button>
+                                    <button class="dropdown-item" type="button" data-value="Japanese">Japanese</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Launch on startup</label>
+                            <div class="settings-hint">Start with system</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="startup">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Show welcome tips</label>
+                            <div class="settings-hint">A quick tips card on startup</div>
+                        </div>
+                        <div class="settings-control">
+                            <button class="secondary-btn" data-setting="welcome-tour" type="button">Start tour</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Editor</h3>
+                    <div class="settings-item">
+                        <div>
+                            <label>Plain Text Mode</label>
+                            <div class="settings-hint">Optimized for huge files</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="plain-mode">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Auto-save</label>
+                            <div class="settings-hint">Save changes periodically</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="autosave">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="settings-dropdown" data-settings-dropdown data-setting="autosave-interval" data-value="5 sec">
+                                <button class="dropdown-trigger" type="button">
+                                    <span>5 sec</span>
+                                    <i data-lucide="chevron-down"></i>
+                                </button>
+                                <div class="dropdown-menu">
+                                    <button class="dropdown-item active" type="button" data-value="5 sec">5 sec</button>
+                                    <button class="dropdown-item" type="button" data-value="10 sec">10 sec</button>
+                                    <button class="dropdown-item" type="button" data-value="30 sec">30 sec</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Spell check</label>
+                            <div class="settings-hint">Underline misspellings</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="spellcheck">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Font size</label>
+                            <div class="settings-hint">Editor text scale</div>
+                        </div>
+                        <div class="settings-control">
+                            <div class="settings-dropdown" data-settings-dropdown data-setting="font-size" data-value="Default">
+                                <button class="dropdown-trigger" type="button">
+                                    <span>Default</span>
+                                    <i data-lucide="chevron-down"></i>
+                                </button>
+                                <div class="dropdown-menu">
+                                    <button class="dropdown-item" type="button" data-value="Small">Small</button>
+                                    <button class="dropdown-item active" type="button" data-value="Default">Default</button>
+                                    <button class="dropdown-item" type="button" data-value="Large">Large</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Word wrap</label>
+                            <div class="settings-hint">Wrap long lines</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="wordwrap">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Highlight current line</label>
+                            <div class="settings-hint">Soft line highlight</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="line-highlight">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Appearance</h3>
+                    <div class="settings-item">
+                        <div>
+                            <label>Accent color</label>
+                            <div class="settings-hint">UI highlight</div>
+                        </div>
+                        <div class="settings-control">
+                            <span class="settings-chip" data-accent="blue">Blue</span>
+                            <span class="settings-chip" data-accent="green">Green</span>
+                            <span class="settings-chip" data-accent="purple">Purple</span>
+                            <span class="settings-chip" data-accent="orange">Orange</span>
+                            <span class="settings-chip" data-accent="red">Red</span>
+                            <span class="settings-chip" data-accent="teal">Teal</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Background image</label>
+                            <div class="settings-hint">Choose an image or MP4 background</div>
+                        </div>
+                        <div class="settings-control">
+                            <button class="secondary-btn" type="button" data-setting="background-image-pick">Choose image</button>
+                            <button class="secondary-btn" type="button" data-setting="background-image-example">EXAMPLE</button>
+                            <button class="secondary-btn" type="button" data-setting="background-image-clear">Clear</button>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Background preview</label>
+                            <div class="settings-hint">Small preview of your current background</div>
+                        </div>
+                        <div class="settings-control">
+                            <div class="settings-bg-preview-wrap">
+                                <div class="settings-bg-preview" data-setting="background-image-preview" data-bg-preview aria-hidden="true">
+                                    <video class="settings-bg-preview-video" data-bg-preview-video muted loop playsinline preload="metadata"></video>
+                                </div>
+                                <div class="settings-preview-caption" data-bg-preview-caption>No media selected</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Background dim</label>
+                            <div class="settings-hint">Dark overlay over the image</div>
+                        </div>
+                        <div class="settings-control">
+                            <input class="settings-range" type="range" min="20" max="85" step="1" data-setting="background-image-dim">
+                            <span class="settings-value" data-bg-dim-value>55%</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Background blur</label>
+                            <div class="settings-hint">Blur amount for readability</div>
+                        </div>
+                        <div class="settings-control">
+                            <input class="settings-range" type="range" min="0" max="20" step="1" data-setting="background-image-blur">
+                            <span class="settings-value" data-bg-blur-value>0px</span>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Adaptive vibe</label>
+                            <div class="settings-hint">Blend UI dark tones with your background media</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="adaptive-vibe">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Accent suggestion</label>
+                            <div class="settings-hint">Suggest accent color from dominant background tone</div>
+                        </div>
+                        <div class="settings-control">
+                            <span class="adaptive-accent-preview" data-adaptive-accent-preview aria-hidden="true"></span>
+                            <span class="settings-value" data-adaptive-accent-value>--</span>
+                            <button class="secondary-btn" type="button" data-setting="adaptive-accent-suggest">Use dominant accent</button>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Reduce motion</label>
+                            <div class="settings-hint">Minimize animations</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="reduce-motion">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Blur effects</label>
+                            <div class="settings-hint">Glass surfaces</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="blur-effects">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Files &amp; Save</h3>
+                    <div class="settings-item">
+                        <div>
+                            <label>Confirm before overwrite</label>
+                            <div class="settings-hint">Ask before replacing files</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="confirm-overwrite">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Default export folder</label>
+                            <div class="settings-hint">Exports will open in this folder</div>
+                        </div>
+                        <div class="settings-control">
+                            <input class="settings-input" placeholder="C:\\Exports" data-setting="export-folder" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Notifications</h3>
+                    <div class="settings-item">
+                        <div>
+                            <label>Update notifications</label>
+                            <div class="settings-hint">Show update alerts</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="update-notifications">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <div>
+                            <label>Error toasts</label>
+                            <div class="settings-hint">Show error messages</div>
+                        </div>
+                        <div class="settings-control">
+                            <label class="switch">
+                                <input type="checkbox" data-setting="error-toasts">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Reset</h3>
+                    <div class="settings-item">
+                        <div>
+                            <label>Reset all settings</label>
+                            <div class="settings-hint">Danger zone</div>
+                        </div>
+                        <div class="settings-control">
+                            <button class="danger-btn" data-action="settings-reset" type="button">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-page-footer">UI only. Settings are visual placeholders.</div>
+        </section>
 
         <div id="heading-popover" class="popover" role="menu" aria-hidden="true">
             <button data-action="format:title">Title</button>
@@ -1174,31 +3990,54 @@
             <button data-action="format:subsection">Subsection</button>
             <button data-action="format:body">Body</button>
         </div>
+        <div id="list-popover" class="popover" role="menu" aria-hidden="true">
+            <button data-action="list:bullet">Bullet List</button>
+            <button data-action="list:number">Numbered List</button>
+        </div>
 
         <div id="command-palette" class="command-palette" role="dialog" aria-hidden="true">
             <input type="text" placeholder="Type a command...">
-            <div class="command-list"></div>
+            <div class="command-list custom-scroll"></div>
         </div>
 
         </div>
 
         <footer>
             <div class="footer-left">
-                <div class="status-item"><i class="ri-git-branch-line"></i> main</div>
-                <div class="status-item"><i class="ri-error-warning-line"></i> 0</div>
-                <div class="status-item"><i class="ri-save-3-line"></i> Auto-Save: On</div>
+                <div class="status-item" data-branch-status><i data-lucide="git-branch"></i> main</div>
+                <div class="status-item"><i data-lucide="save"></i> Auto-Save: On</div>
                 <div class="status-item">UTF-8</div>
+                <div class="status-item" data-session-time>Session: 00:00</div>
             </div>
             <div class="footer-right">
                 <span class="status-item">Ln 12, Col 45</span>
                 <span class="status-item">633 chars</span>
-                <span class="status-item">Tab Size: 4</span>
-                <span class="status-item" style="color: var(--accent-primary);"><i class="ri-markdown-line"></i> Markdown</span>
-                <span class="status-item"><i class="ri-notification-3-fill"></i></span>
+                <span class="status-item" data-activity-bell style="position: relative;">
+                    <i data-lucide="bell"></i>
+                    <span class="activity-badge" data-activity-badge>1</span>
+                </span>
             </div>
         </footer>
+        <div class="activity-panel" id="activity-panel" aria-hidden="true">
+            <div class="activity-list custom-scroll" data-activity-list></div>
+        </div>
+        <div class="tour-overlay" id="tour-overlay" aria-hidden="true">
+            <div class="tour-highlight" data-tour-highlight></div>
+            <div class="tour-card" data-tour-card>
+                <div class="tour-title" data-tour-title>Tour</div>
+                <div class="tour-desc" data-tour-desc></div>
+                <div class="tour-footer">
+                    <div class="tour-progress" data-tour-progress>1/1</div>
+                    <div class="tour-actions">
+                        <button class="secondary-btn" data-tour-action="prev">Back</button>
+                        <button class="secondary-btn" data-tour-action="skip">Skip</button>
+                        <button class="primary-btn" data-tour-action="next">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script src="renderer.js"></script>
+    <script type="module" src="./renderer.js"></script>
 </body>
 </html>

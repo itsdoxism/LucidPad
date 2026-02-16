@@ -1,0 +1,233 @@
+{
+  "0.1.0": {
+    "date": "2025-11-08",
+    "added": [
+      "Release of LucidPad.",
+      "Support for multiple tabs to handle notes and documents."
+    ],
+    "improved": [],
+    "fixed": []
+  },
+  "0.1.1": {
+    "date": "2025-11-12",
+    "added": [
+      "Added a floating toolbar for quick access to essential formatting tools.",
+      "Connected and activated the menu bar across the app."
+    ],
+    "improved": [
+      "Refined tab visuals for a cleaner and more readable layout."
+    ],
+    "fixed": []
+  },
+  "0.1.2": {
+    "date": "2025-11-16",
+    "added": [
+      "Introduced a find bar to quickly locate text within documents.",
+      "Implemented custom caret rendering for better visual clarity."
+    ],
+    "improved": [
+      "Improved focus handling to make editor interactions more reliable."
+    ],
+    "fixed": []
+  },
+  "0.1.3": {
+    "date": "2025-11-20",
+    "added": [
+      "Added a side panel with Outline, Backlinks, and Tags support.",
+      "Panels are now resizable and animated for smoother interaction."
+    ],
+    "improved": [
+      "Outline tracking is now more accurate and responsive."
+    ],
+    "fixed": []
+  },
+  "0.1.4": {
+    "date": "2025-11-24",
+    "added": [
+      "Introduced the Activity Center for centralized notifications.",
+      "Added toast notifications with an undo option for quick recovery."
+    ],
+    "improved": [
+      "Footer status indicators are now clearer and easier to interact with."
+    ],
+    "fixed": []
+  },
+  "0.1.5": {
+    "date": "2025-11-28",
+    "added": [
+      "Added a download overlay showing progress, speed, and ETA.",
+      "Downloads can now be paused, resumed, or cancelled."
+    ],
+    "improved": [
+      "Improved internal telemetry and logging for better diagnostics."
+    ],
+    "fixed": [
+      "Resolved edge cases that caused downloads to stall indefinitely."
+    ]
+  },
+  "0.1.6": {
+    "date": "2025-12-02",
+    "added": [
+      "Introduced a streamlined update flow.",
+      "Added interactive progress indicators during updates."
+    ],
+    "improved": [
+      "Activity Center now provides clearer update-related information."
+    ],
+    "fixed": [
+      "Fixed several update-related errors that lacked proper feedback."
+    ]
+  },
+  "0.1.7": {
+    "date": "2025-12-06",
+    "added": [
+      "Added an About dialog with project and author information.",
+      "Introduced a built-in changelog viewer with search and copy support."
+    ],
+    "improved": [
+      "Modal animations have been refined for smoother transitions."
+    ],
+    "fixed": []
+  },
+  "0.1.8": {
+    "date": "2024-12-10",
+    "added": [
+      "Added a dedicated “What’s New” tab for recent changes.",
+      "Introduced a welcome tips modal for first-time users."
+    ],
+    "improved": [
+      "Improved the layout and readability of the changelog."
+    ],
+    "fixed": []
+  },
+  "0.1.9": {
+    "date": "2025-12-14",
+    "added": [
+      "Introduced a settings page with configurable options.",
+      "Added preset accent colors for quick personalization."
+    ],
+    "improved": [
+      "Settings animations are now smoother and more consistent."
+    ],
+    "fixed": []
+  },
+  "0.2.0": {
+    "date": "2025-12-18",
+    "added": [
+      "Implemented auto-save to prevent accidental data loss.",
+      "Added toggles for word wrap and spellcheck."
+    ],
+    "improved": [
+      "User preferences now persist reliably between sessions."
+    ],
+    "fixed": []
+  },
+  "0.2.1": {
+    "date": "2025-12-22",
+    "added": [
+      "Added active line highlighting for better readability.",
+      "Introduced an optional blur/glass UI effect."
+    ],
+    "improved": [
+      "Scrolling and editor calculations have been significantly stabilized."
+    ],
+    "fixed": []
+  },
+  "0.2.2": {
+    "date": "2025-12-26",
+    "added": [
+      "Added startup behavior toggles.",
+      "Introduced options to disable update and error notifications."
+    ],
+    "improved": [
+      "Error messages now provide clearer and more actionable feedback."
+    ],
+    "fixed": []
+  },
+  "0.2.3": {
+    "date": "2025-12-30",
+    "added": [
+      "Added overwrite protection to prevent accidental file loss.",
+      "Introduced a default export directory setting."
+    ],
+    "improved": [
+      "Exporting to PDF and HTML is now faster and more reliable."
+    ],
+    "fixed": []
+  },
+  "0.2.4": {
+    "date": "2026-01-03",
+    "added": [
+      "Added a missing file recovery dialog.",
+      "Introduced a local trash system for deleted notes."
+    ],
+    "improved": [
+      "Closing tabs now prompts when there are unsaved changes."
+    ],
+    "fixed": []
+  },
+  "0.2.5": {
+    "date": "2026-01-07",
+    "added": [
+      "Introduced a high-performance plain text mode for large files.",
+      "Status indicators now remain active in performance mode."
+    ],
+    "improved": [
+      "Large file handling performance has been significantly improved."
+    ],
+    "fixed": []
+  },
+  "0.2.6": {
+    "date": "2026-01-11",
+    "added": [
+      "Added spellcheck suggestions to the context menu.",
+      "Introduced custom system-level error dialogs."
+    ],
+    "improved": [
+      "Caret positioning accuracy has been further refined."
+    ],
+    "fixed": []
+  },
+  "0.2.7": {
+    "date": "2026-01-14",
+    "added": [
+      "Introduced a guided onboarding tour.",
+      "The tour can now be relaunched from settings."
+    ],
+    "improved": [
+      "Tour highlights and overlays have been visually polished."
+    ],
+    "fixed": []
+  },
+  "0.2.8": {
+    "date": "2026-01-17",
+    "added": [
+      "Added zoom controls for improved accessibility.",
+      "Tabs now remember cursor position when switching.",
+      "More Mongolian language support now available."
+    ],
+    "improved": [
+      "Caret behavior on empty lines has been corrected."
+    ],
+    "fixed": [
+      "Resolved multiple menu related UI glitches.",
+      "Fixed footer UI issues."
+    ]
+  },
+  "0.2.9": {
+    "date": "2026-02-16",
+    "added": [
+      "Added full Japanese language support across onboarding, settings, menus, and UI labels.",
+      "Added customizable background media with image/MP4 support, preview, and example media.",
+      "Introduced adaptive vibe and dominant-color accent suggestion for dynamic theming."
+    ],
+    "improved": [
+      "Completed migration to Lucide icons for a more consistent icon system.",
+      "Window/header controls, tooltips, and view mode interactions were refined for better usability."
+    ],
+    "fixed": [
+      "Resolved duplicate context menu behavior during spellcheck right-click.",
+      "Fixed multiple layout and visibility issues in toolbar, menubar, and view mode states."
+    ]
+  }
+}
