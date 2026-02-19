@@ -19,56 +19,56 @@ This checklist is designed to migrate the current Electron app (0.2.x) to a Taur
 - [ ] Record feature parity baseline (file ops, tabs, trash, update, spell, startup, export).
 
 ## Phase 1 - Add Tauri Skeleton
-- [ ] Initialize `src-tauri` with window config matching current app:
+- [x] Initialize `src-tauri` with window config matching current app:
 - frame disabled
 - hidden title bar
 - minimum width/height
 - custom icon
-- [ ] Keep renderer build output path aligned with Tauri config.
-- [ ] Add a thin JS adapter (`window.lp` compatible wrapper) for Tauri invoke/event APIs.
+- [x] Keep renderer build output path aligned with Tauri config.
+- [x] Add a thin JS adapter (`window.lp` compatible wrapper) for Tauri invoke/event APIs.
 
 ## Phase 2 - Command Parity (Critical)
 Implement Tauri command equivalents for each current Electron action:
 
 ### App and window
-- [ ] `app:version`
-- [ ] `app:quit`
-- [ ] `app:startup:get`
-- [ ] `app:startup:set`
-- [ ] `window:minimize`
-- [ ] `window:toggleMaximize`
-- [ ] `window:isMaximized`
-- [ ] `window:close`
-- [ ] `view:getFullscreen`
-- [ ] `view:setFullscreen`
-- [ ] `view:zoomIn`
-- [ ] `view:zoomOut`
-- [ ] `view:zoomReset`
+- [x] `app:version`
+- [x] `app:quit`
+- [x] `app:startup:get`
+- [x] `app:startup:set`
+- [x] `window:minimize`
+- [x] `window:toggleMaximize`
+- [x] `window:isMaximized`
+- [x] `window:close`
+- [x] `view:getFullscreen`
+- [x] `view:setFullscreen`
+- [x] `view:zoomIn` (compat no-op in Tauri shim)
+- [x] `view:zoomOut` (compat no-op in Tauri shim)
+- [x] `view:zoomReset` (compat no-op in Tauri shim)
 
 ### File operations
-- [ ] `file:open`
-- [ ] `file:openPath`
-- [ ] `file:save`
-- [ ] `file:saveAs`
-- [ ] `file:autoSave`
-- [ ] `file:exists`
-- [ ] `file:exportPdf`
-- [ ] `file:exportTxt`
-- [ ] `file:exportHtml`
+- [x] `file:open`
+- [x] `file:openPath`
+- [x] `file:save`
+- [x] `file:saveAs`
+- [x] `file:autoSave`
+- [x] `file:exists`
+- [ ] `file:exportPdf` (placeholder error response; needs real PDF pipeline)
+- [x] `file:exportTxt`
+- [x] `file:exportHtml`
 
 ### Editor actions
-- [ ] `edit:undo`
-- [ ] `edit:redo`
-- [ ] `edit:cut`
-- [ ] `edit:copy`
-- [ ] `edit:paste`
-- [ ] `edit:selectAll`
+- [x] `edit:undo`
+- [x] `edit:redo`
+- [x] `edit:cut`
+- [x] `edit:copy`
+- [x] `edit:paste`
+- [x] `edit:selectAll`
 
 ### Update flow
-- [ ] `update:check`
-- [ ] `update:download`
-- [ ] `update:install`
-- [ ] Emit events equivalent to preload bridge:
+- [x] `update:check`
+- [x] `update:download`
+- [x] `update:install`
+- [x] Emit events equivalent to preload bridge:
 - `update:available`
 - `update:none`
 - `update:progress`
@@ -76,29 +76,29 @@ Implement Tauri command equivalents for each current Electron action:
 - `update:error`
 
 ### Download/OS integration
-- [ ] `download:pause`
-- [ ] `download:resume`
-- [ ] `download:cancel`
-- [ ] `download:openFolder`
-- [ ] `download:openFile`
+- [x] `download:pause` (compat no-op in Tauri shim)
+- [x] `download:resume` (compat no-op in Tauri shim)
+- [x] `download:cancel` (compat no-op in Tauri shim)
+- [x] `download:openFolder`
+- [x] `download:openFile`
 
 ### Spell and misc
-- [ ] `spell:replace`
-- [ ] `spell:add`
-- [ ] `git:branch` (optional in production; keep for status feature parity)
+- [x] `spell:replace`
+- [x] `spell:add` (compat no-op in Tauri shim)
+- [x] `git:branch` (optional in production; keep for status feature parity)
 
 ## Phase 3 - Event Parity
 Current renderer expects these event hooks:
-- [ ] `onDownloadStarted`
-- [ ] `onDownloadProgress`
-- [ ] `onDownloadDone`
-- [ ] `onDownloadError`
-- [ ] `onUpdateAvailable`
-- [ ] `onUpdateNone`
-- [ ] `onUpdateProgress`
-- [ ] `onUpdateDownloaded`
-- [ ] `onUpdateError`
-- [ ] `onSpellContext`
+- [ ] `onDownloadStarted` (hook exists; native download event source still pending)
+- [ ] `onDownloadProgress` (hook exists; native download event source still pending)
+- [ ] `onDownloadDone` (hook exists; native download event source still pending)
+- [ ] `onDownloadError` (hook exists; native download event source still pending)
+- [x] `onUpdateAvailable`
+- [x] `onUpdateNone`
+- [x] `onUpdateProgress`
+- [x] `onUpdateDownloaded`
+- [x] `onUpdateError`
+- [ ] `onSpellContext` (hook exists; native spell context emission still pending)
 
 Map each to Tauri event emit/listen with identical payload shapes.
 
