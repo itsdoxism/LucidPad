@@ -229,5 +229,19 @@
       "Resolved duplicate context menu behavior during spellcheck right-click.",
       "Fixed multiple layout and visibility issues in toolbar, menubar, and view mode states."
     ]
+  },
+  "0.3.0": {
+    "date": "2026-03-19",
+    "added": [
+      "Introduced a fully custom in-app updater flow with Hide, Later, and Restart now actions."
+    ],
+    "improved": [
+      "Changed Electron into Tauri",
+      "Release packaging now tracks icon changes and rebuilds bundle resources more reliably."
+    ],
+    "fixed": [
+      "Fixed broken Mongolian UI text caused by mojibake encoding in the translation bundle.",
+      "and some bug fixes u know lol."
+    ]
   }
 }

@@ -2,6 +2,9 @@
 
 This checklist is designed to migrate the current Electron app (0.2.x) to a Tauri-based app for 3.0.0 with minimum renderer rewrite.
 
+Status reviewed on 2026-03-19.
+Current state: the app runs on Tauri today, but migration/release hardening is still incomplete.
+
 ## Scope
 - Keep current renderer UX/flows as-is where possible.
 - Replace Electron main/preload IPC with Tauri commands + events.
@@ -52,7 +55,7 @@ Implement Tauri command equivalents for each current Electron action:
 - [x] `file:saveAs`
 - [x] `file:autoSave`
 - [x] `file:exists`
-- [ ] `file:exportPdf` (placeholder error response; needs real PDF pipeline)
+- [x] `file:exportPdf`
 - [x] `file:exportTxt`
 - [x] `file:exportHtml`
 
@@ -76,23 +79,23 @@ Implement Tauri command equivalents for each current Electron action:
 - `update:error`
 
 ### Download/OS integration
-- [x] `download:pause` (compat no-op in Tauri shim)
-- [x] `download:resume` (compat no-op in Tauri shim)
-- [x] `download:cancel` (compat no-op in Tauri shim)
+- [ ] `download:pause` (not supported by current Tauri/webview download hooks; renderer degrades gracefully)
+- [ ] `download:resume` (not supported by current Tauri/webview download hooks; renderer degrades gracefully)
+- [ ] `download:cancel` (not supported by current Tauri/webview download hooks; renderer degrades gracefully)
 - [x] `download:openFolder`
 - [x] `download:openFile`
 
 ### Spell and misc
 - [x] `spell:replace`
-- [x] `spell:add` (compat no-op in Tauri shim)
+- [ ] `spell:add` (native custom dictionary integration is not implemented; renderer hides unsupported action)
 - [x] `git:branch` (optional in production; keep for status feature parity)
 
 ## Phase 3 - Event Parity
 Current renderer expects these event hooks:
-- [ ] `onDownloadStarted` (hook exists; native download event source still pending)
-- [ ] `onDownloadProgress` (hook exists; native download event source still pending)
-- [ ] `onDownloadDone` (hook exists; native download event source still pending)
-- [ ] `onDownloadError` (hook exists; native download event source still pending)
+- [x] `onDownloadStarted`
+- [x] `onDownloadProgress` (synthetic start/finish progress from Tauri download hook)
+- [x] `onDownloadDone`
+- [x] `onDownloadError`
 - [x] `onUpdateAvailable`
 - [x] `onUpdateNone`
 - [x] `onUpdateProgress`
@@ -110,9 +113,9 @@ Use a bridge strategy:
 - [ ] Keep old update endpoint active for emergency 2.x patches.
 
 ## Phase 5 - Build and Release Pipeline
-- [ ] Add Tauri build scripts (debug + release).
+- [x] Add Tauri build scripts (debug + release).
 - [ ] Configure signing/notarization as needed for target OS.
-- [ ] Configure Tauri updater endpoint and metadata.
+- [x] Configure Tauri updater endpoint and metadata.
 - [ ] Validate GitHub release artifacts for Tauri update channel.
 
 ## Phase 6 - QA Matrix
@@ -135,8 +138,8 @@ Run all tests on packaged builds, not dev mode only.
 
 ## Suggested Compatibility Adapter
 Keep renderer code stable by routing through one adapter:
-- Electron mode: use existing `window.lp` from preload.
-- Tauri mode: expose same methods from a Tauri shim.
+- Current build: expose `window.lp` from a Tauri shim.
+- Historical note: the old Electron preload contract is retained only as a compatibility shape for renderer actions/events.
 
 Adapter contract:
 - `action(name, payload)` -> Promise
@@ -156,6 +159,12 @@ Adapter contract:
 - [ ] No critical UX regressions vs 0.2.x baseline.
 - [ ] Packaged updater path verified end-to-end on real machine.
 - [ ] Migration messaging from 2.x to 3.0.0 shipped.
+
+## Current Gaps
+- Spell context event emission is still pending.
+- Native custom dictionary support is still pending.
+- Download pause/resume/cancel is not available through the current Tauri webview download hooks.
+- Packaged updater verification, signing, and release-channel validation still need a real-machine pass.
 
 ## Notes
 - Keep this file updated as each item is implemented.

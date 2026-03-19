@@ -1,6 +1,6 @@
 {
   "name": "lucidpad",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "start": "npm run tauri:dev",
@@ -8,7 +8,9 @@
     "vite:dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
     "dist": "npm run tauri:build",
-    "release": "npm run tauri:build",
+    "release": "npm run release:local",
+    "release:local": "powershell -ExecutionPolicy Bypass -File scripts/release-local.ps1",
+    "release:manifest": "node scripts/generate-latest-json.mjs",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
   },

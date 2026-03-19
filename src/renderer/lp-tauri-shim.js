@@ -10,6 +10,16 @@ if (!window.lp && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)) {
   const listeners = new Map();
   let pendingUpdate = null;
   let downloadedUpdate = null;
+  const capabilities = Object.freeze({
+    spellAdd: false,
+    spellContext: false,
+    downloadPauseResume: false,
+    downloadCancel: false
+  });
+  const SPELL_ADD_UNSUPPORTED_MESSAGE =
+    "Custom dictionary updates are not supported in this build. Use the native context menu instead.";
+  const DOWNLOAD_CONTROL_UNSUPPORTED_MESSAGE =
+    "Pause, resume, and cancel are not supported for webview downloads in this build.";
 
   const on = (eventName, handler) => {
     const set = listeners.get(eventName) || new Set();
@@ -41,6 +51,22 @@ if (!window.lp && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)) {
     if (error && typeof error.message === "string" && error.message.trim()) return error.message;
     return fallback;
   };
+  const unsupportedAction = (message, code) => ({
+    canceled: false,
+    unsupported: true,
+    code,
+    error: message
+  });
+
+  const isUpdaterUnconfiguredError = (message) => {
+    if (!message || typeof message !== "string") return false;
+    const value = message.toLowerCase();
+    return (
+      value.includes("updater does not have any endpoints set") ||
+      value.includes("updater pubkey") ||
+      value.includes("updater public key")
+    );
+  };
 
   const backendAction = async (name, payload) => {
     try {
@@ -63,7 +89,14 @@ if (!window.lp && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)) {
         emit("update:none");
       }
     } catch (error) {
-      emit("update:error", { message: getErrorMessage(error, "Update check failed") });
+      const message = getErrorMessage(error, "Update check failed");
+      if (isUpdaterUnconfiguredError(message)) {
+        const friendly =
+          "Updater is not configured for this build. Set plugins.updater.endpoints and plugins.updater.pubkey in src-tauri/tauri.conf.json.";
+        emit("update:error", { message: friendly, code: "updater_not_configured" });
+        return { canceled: false, error: friendly, code: "updater_not_configured" };
+      }
+      emit("update:error", { message });
     }
     return { canceled: false };
   };
@@ -142,6 +175,7 @@ if (!window.lp && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)) {
   };
 
   window.lp = {
+    capabilities,
     action: async (name, payload) => {
       switch (name) {
         case "app:version": {
@@ -198,6 +232,10 @@ if (!window.lp && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)) {
           await appWindow.close();
           return { canceled: false };
         }
+        case "window:startDragging": {
+          await appWindow.startDragging();
+          return { canceled: false };
+        }
         case "view:fullscreen": {
           const next = !(await appWindow.isFullscreen());
           await appWindow.setFullscreen(next);
@@ -248,7 +286,7 @@ if (!window.lp && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)) {
           return { canceled: false };
         }
         case "spell:add": {
-          return { canceled: false };
+          return unsupportedAction(SPELL_ADD_UNSUPPORTED_MESSAGE, "spell_add_unsupported");
         }
         case "update:check": {
           return runUpdateCheck();
@@ -262,7 +300,7 @@ if (!window.lp && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)) {
         case "download:pause":
         case "download:resume":
         case "download:cancel": {
-          return { canceled: false };
+          return unsupportedAction(DOWNLOAD_CONTROL_UNSUPPORTED_MESSAGE, "download_control_unsupported");
         }
         case "download:openFolder": {
           const filePath = typeof payload?.filePath === "string" ? payload.filePath : "";

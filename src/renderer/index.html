@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LucidPad</title>
+    <link rel="icon" type="image/svg+xml" href="./logo/LucidPad.svg">
+    <link rel="shortcut icon" href="./logo/LucidPad.svg">
     
-    <!-- Fonts and icons are bundled locally via Vite in renderer/main.js -->
+    <!-- Fonts and icons are bundled locally via Vite -->
     
     <style>
         :root {
@@ -189,16 +191,6 @@
             font-size: 0.85rem;
             color: var(--text-muted);
             gap: 16px;
-            -webkit-app-region: drag;
-        }
-
-        .menubar .app-logo,
-        .menubar .menu-item,
-        .menubar .menu-dropdown,
-        .menubar .menu-dropdown button,
-        .window-controls,
-        .window-control-btn {
-            -webkit-app-region: no-drag;
         }
 
         .menu-spacer {
@@ -3186,7 +3178,7 @@
         </div>
         <header>
             <div class="menubar" data-tour="menubar">
-                <img src="logo/LucidPad.png" alt="LP" class="app-logo" draggable="false">
+                <img src="logo/LucidPad.svg" alt="LP" class="app-logo" draggable="false">
                 <div class="menu-item" data-menu="file">
                     <span class="menu-label">File</span>
                     <div class="menu-dropdown">
@@ -3232,13 +3224,13 @@
                 </div>
                 <div class="menu-spacer" aria-hidden="true"></div>
                 <div class="window-controls" aria-label="Window controls">
-                    <button class="window-control-btn" data-action="window:minimize" aria-label="Minimize" data-no-tooltip>
+                    <button type="button" class="window-control-btn" data-action="window:minimize" aria-label="Minimize" data-no-tooltip>
                         <i data-lucide="minus"></i>
                     </button>
-                    <button class="window-control-btn" data-action="window:toggleMaximize" data-window-max-btn aria-label="Maximize" data-no-tooltip>
+                    <button type="button" class="window-control-btn" data-action="window:toggleMaximize" data-window-max-btn aria-label="Maximize" data-no-tooltip>
                         <i data-lucide="square"></i>
                     </button>
-                    <button class="window-control-btn close" data-action="window:close" aria-label="Close" data-no-tooltip>
+                    <button type="button" class="window-control-btn close" data-action="window:close" aria-label="Close" data-no-tooltip>
                         <i data-lucide="x"></i>
                     </button>
                 </div>
@@ -3414,7 +3406,7 @@
         <div class="onboard-modal" id="onboard-modal" aria-hidden="true">
             <div class="onboard-card" role="dialog" aria-modal="true" aria-label="Quick setup">
                 <div class="onboard-header">
-                    <img src="logo/LucidPad.png" alt="LucidPad" class="onboard-logo">
+                    <img src="logo/LucidPad.svg" alt="LucidPad" class="onboard-logo">
                     <div>
                         <div class="onboard-title" data-onboard-title>Quick setup</div>
                         <div class="onboard-subtitle" data-onboard-subtitle>Choose a few basics before we start.</div>
@@ -3478,7 +3470,7 @@
         <div class="welcome-modal" id="welcome-modal" aria-hidden="true">
             <div class="welcome-card" role="dialog" aria-modal="true" aria-label="Welcome tips">
                 <div class="welcome-header">
-                    <img src="logo/LucidPad.png" alt="LucidPad" class="welcome-logo">
+                    <img src="logo/LucidPad.svg" alt="LucidPad" class="welcome-logo">
                     <div class="welcome-title">Welcome to LucidPad</div>
                 </div>
                 <div class="welcome-text">A few quick tips to get you started:</div>
@@ -3495,7 +3487,7 @@
         </div>
         <div class="about-modal" id="about-modal" aria-hidden="true">
             <div class="about-card" role="dialog" aria-modal="true" aria-label="About LucidPad">
-                <img src="logo/LucidPad.png" alt="LucidPad Logo" class="about-logo">
+                <img src="logo/LucidPad.svg" alt="LucidPad Logo" class="about-logo">
                 <div class="about-title">LucidPad</div>
                 <div class="about-version" data-about-version>Version</div>
                 <div class="about-description">Still in progress. More coming soon.</div>
@@ -3558,7 +3550,7 @@
         <div class="update-modal" id="update-modal" aria-hidden="true">
             <div class="update-card">
                 <div class="update-header">
-                    <img src="logo/LucidPad.png" alt="LucidPad">
+                    <img src="logo/LucidPad.svg" alt="LucidPad">
                     <div>
                         <div class="update-title">A new version of LucidPad is available.</div>
                         <div class="update-subtitle" data-update-version>Version X.X.X includes performance improvements and new features.</div>
@@ -3978,7 +3970,7 @@
                     </div>
                 </div>
             </div>
-            <div class="settings-page-footer">UI only. Settings are visual placeholders.</div>
+            <div class="settings-page-footer">Settings are applied immediately.</div>
         </section>
 
         <div id="heading-popover" class="popover" role="menu" aria-hidden="true">

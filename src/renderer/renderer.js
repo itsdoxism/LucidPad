@@ -371,6 +371,16 @@ function installButtonTooltipAdapter() {
   const commandList = commandPalette?.querySelector(".command-list");
 
   const api = window.lp || null;
+  const getCapability = (name, fallback = true) => {
+    if (!api || !api.capabilities || !Object.prototype.hasOwnProperty.call(api.capabilities, name)) {
+      return fallback;
+    }
+    return !!api.capabilities[name];
+  };
+  const supportsSpellAdd = getCapability("spellAdd");
+  const supportsSpellContext = getCapability("spellContext");
+  const supportsDownloadPauseResume = getCapability("downloadPauseResume");
+  const supportsDownloadCancel = getCapability("downloadCancel");
   let isWrap = true;
   let lastSavedPath = "";
   let tabCounter = 1;
@@ -437,6 +447,10 @@ function installButtonTooltipAdapter() {
 
   let menuOpenIndex = -1;
   let menuFocusedIndex = -1;
+  const MENUBAR_DRAG_THRESHOLD = 6;
+  const MENUBAR_DRAG_SUPPRESS_MS = 400;
+  let menubarDragState = null;
+  let menubarClickSuppressUntil = 0;
   let savedRange = null;
   let paletteIndex = 0;
   let findMatches = [];
@@ -448,6 +462,7 @@ function installButtonTooltipAdapter() {
   let downloadStage = "downloading";
   let downloadMode = "file";
   let pendingUpdateVersion = "";
+  let manualUpdateCheckPending = false;
   let changelogData = {};
   let changelogVersions = [];
   let activeChangelogVersion = "";
@@ -2624,6 +2639,9 @@ function installButtonTooltipAdapter() {
     if (editor) {
       editor.setAttribute("spellcheck", value ? "true" : "false");
     }
+    if (plainInput) {
+      plainInput.setAttribute("spellcheck", value ? "true" : "false");
+    }
     localStorage.setItem("lp:spellcheck", value ? "1" : "0");
     if (settingsSpellcheckToggle) {
       settingsSpellcheckToggle.checked = value;
@@ -3753,10 +3771,14 @@ body.adaptive-vibe .secondary-btn {
         tourTargetsMissing: "Tour targets not found.",
         autosaveFailed: "Auto-save failed",
         downloadFailed: "Download failed",
-        updateReadyRestart: "Update ready. Restarting...",
+        downloadControlsUnavailable: "Pause, resume, and cancel are not supported for downloads in this build.",
+        downloadContinuesBackground: "Download will continue in the background.",
+        updateContinuesBackground: "Update will continue in the background.",
+        updateReadyRestart: "Update ready. Restart when you're ready.",
         updateFailed: "Update failed",
         restoreFailed: "Restore failed",
         restoreFailedWithReason: "Restore failed: {error}",
+        spellAddUnavailable: "Use the native context menu to manage dictionary suggestions.",
         backgroundVideoTemporary: "Video background is temporary and will reset after restart."
       },
       footer: {
@@ -4062,7 +4084,8 @@ body.adaptive-vibe .secondary-btn {
         tourTargetsMissing: "ツアー対象が見つかりません。",
         autosaveFailed: "自動保存に失敗しました",
         downloadFailed: "ダウンロードに失敗しました",
-        updateReadyRestart: "更新の準備ができました。再起動しています...",
+        updateContinuesBackground: "更新はバックグラウンドで続行されます。",
+        updateReadyRestart: "更新の準備ができました。準備ができたら再起動してください。",
         updateFailed: "アップデートに失敗しました",
         restoreFailed: "復元に失敗しました",
         restoreFailedWithReason: "復元に失敗しました: {error}",
@@ -4364,7 +4387,8 @@ Mongolian: {
     tourTargetsMissing: "Ð¢Ð°Ð½Ð¸Ð»Ñ†ÑƒÑƒÐ»Ð³Ñ‹Ð½ Ð·Ð¾Ñ€Ð¸Ð»Ñ‚Ð¾Ñ‚ Ñ…ÑÑÑÐ³ Ð¾Ð»Ð´ÑÐ¾Ð½Ð³Ò¯Ð¹.",
     autosaveFailed: "ÐÐ²Ñ‚Ð¾ Ñ…Ð°Ð´Ð³Ð°Ð»Ð°Ð»Ñ‚ Ð°Ð¼Ð¶Ð¸Ð»Ñ‚Ð³Ò¯Ð¹",
     downloadFailed: "Ð¢Ð°Ñ‚Ð°Ð»Ñ‚ Ð°Ð¼Ð¶Ð¸Ð»Ñ‚Ð³Ò¯Ð¹",
-    updateReadyRestart: "Ð¨Ð¸Ð½ÑÑ‡Ð»ÑÐ» Ð±ÑÐ»ÑÐ½. Ð”Ð°Ñ…Ð¸Ð½ Ð°ÑÐ°Ð°Ð¶ Ð±Ð°Ð¹Ð½Ð°...",
+    updateContinuesBackground: "Ð¨Ð¸Ð½ÑÑ‡Ð»ÑÐ» background-Ð´ Ò¯Ñ€Ð³ÑÐ»Ð¶Ð¸Ð»Ð½Ñ.",
+    updateReadyRestart: "Ð¨Ð¸Ð½ÑÑ‡Ð»ÑÐ» Ð±ÑÐ»ÑÐ½. Ð‘ÑÐ»ÑÐ½ Ð±Ð¾Ð»Ð¾Ñ…Ð¾Ð¾Ñ€Ð¾Ð¾ Ð´Ð°Ñ…Ð¸Ð½ Ð°ÑÐ°Ð°Ñ€Ð°Ð¹.",
     updateFailed: "Ð¨Ð¸Ð½ÑÑ‡Ð»ÑÐ»Ñ‚ Ð°Ð¼Ð¶Ð¸Ð»Ñ‚Ð³Ò¯Ð¹",
     restoreFailed: "Ð¡ÑÑ€Ð³ÑÑÑ…ÑÐ´ Ð°Ð»Ð´Ð°Ð° Ð³Ð°Ñ€Ð»Ð°Ð°",
     restoreFailedWithReason: "Ð¡ÑÑ€Ð³ÑÑÑ…ÑÐ´ Ð°Ð»Ð´Ð°Ð° Ð³Ð°Ñ€Ð»Ð°Ð°: {error}",
@@ -4382,6 +4406,77 @@ Mongolian: {
 }
 
   };
+
+  const CP1252_REVERSE_MAP = new Map([
+    [0x20AC, 0x80],
+    [0x201A, 0x82],
+    [0x0192, 0x83],
+    [0x201E, 0x84],
+    [0x2026, 0x85],
+    [0x2020, 0x86],
+    [0x2021, 0x87],
+    [0x02C6, 0x88],
+    [0x2030, 0x89],
+    [0x0160, 0x8A],
+    [0x2039, 0x8B],
+    [0x0152, 0x8C],
+    [0x017D, 0x8E],
+    [0x2018, 0x91],
+    [0x2019, 0x92],
+    [0x201C, 0x93],
+    [0x201D, 0x94],
+    [0x2022, 0x95],
+    [0x2013, 0x96],
+    [0x2014, 0x97],
+    [0x02DC, 0x98],
+    [0x2122, 0x99],
+    [0x0161, 0x9A],
+    [0x203A, 0x9B],
+    [0x0153, 0x9C],
+    [0x017E, 0x9E],
+    [0x0178, 0x9F]
+  ]);
+
+  function decodeMojibakeString(value) {
+    if (typeof value !== "string" || !/[ÐÑÒÓÂ]/.test(value)) return value;
+    try {
+      const bytes = [];
+      for (const char of value) {
+        const code = char.charCodeAt(0);
+        if (code <= 0xff) {
+          bytes.push(code);
+          continue;
+        }
+        const mapped = CP1252_REVERSE_MAP.get(code);
+        if (typeof mapped === "number") {
+          bytes.push(mapped);
+          continue;
+        }
+        return value;
+      }
+      return new TextDecoder("utf-8").decode(new Uint8Array(bytes));
+    } catch (_error) {
+      return value;
+    }
+  }
+
+  function repairMojibakeTranslations(value) {
+    if (typeof value === "string") {
+      return decodeMojibakeString(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map((item) => repairMojibakeTranslations(item));
+    }
+    if (!value || typeof value !== "object") {
+      return value;
+    }
+    for (const [key, item] of Object.entries(value)) {
+      value[key] = repairMojibakeTranslations(item);
+    }
+    return value;
+  }
+
+  repairMojibakeTranslations(i18n.Mongolian);
 
   function t(path) {
     const dict = i18n[currentLanguage] || i18n.English;
@@ -5172,16 +5267,18 @@ Mongolian: {
         spellItems.appendChild(btn);
       });
     }
-    const divider = document.createElement("div");
-    divider.className = "spell-divider";
-    spellItems.appendChild(divider);
-    const addBtn = document.createElement("button");
-    addBtn.className = "spell-item";
-    addBtn.type = "button";
-    addBtn.textContent = "Add to dictionary";
-    addBtn.dataset.action = "add";
-    addBtn.dataset.value = word || "";
-    spellItems.appendChild(addBtn);
+    if (supportsSpellAdd) {
+      const divider = document.createElement("div");
+      divider.className = "spell-divider";
+      spellItems.appendChild(divider);
+      const addBtn = document.createElement("button");
+      addBtn.className = "spell-item";
+      addBtn.type = "button";
+      addBtn.textContent = "Add to dictionary";
+      addBtn.dataset.action = "add";
+      addBtn.dataset.value = word || "";
+      spellItems.appendChild(addBtn);
+    }
 
     spellMenu.style.left = `${x}px`;
     spellMenu.style.top = `${y}px`;
@@ -5728,6 +5825,24 @@ Mongolian: {
     updateModal.setAttribute("aria-hidden", "true");
   }
 
+  async function requestUpdateCheck(options = {}) {
+    const manual = !!options.manual;
+    if (!api) return;
+    if (manual) {
+      manualUpdateCheckPending = true;
+      showNotification(t("toast.checkingUpdates"));
+    }
+    try {
+      await api.action("update:check");
+    } catch (error) {
+      if (!manual) return;
+      manualUpdateCheckPending = false;
+      const message = error?.message || t("toast.updateFailed");
+      addActivity({ type: "error", title: message });
+      showErrorToast(message);
+    }
+  }
+
   function openOnboardModal() {
     if (!onboardModal) return;
     setOnboardStep("language");
@@ -6068,16 +6183,46 @@ Mongolian: {
     const cancelBtn = downloadButtons.find((btn) => btn.dataset.downloadAction === "cancel");
     const openBtn = downloadButtons.find((btn) => btn.dataset.downloadAction === "open");
     if (pauseBtn) {
-      pauseBtn.textContent = downloadPaused ? "Resume" : "Pause";
-      pauseBtn.disabled = downloadStage !== "downloading" || downloadMode !== "file";
+      if (downloadMode === "update") {
+        pauseBtn.style.display = "none";
+      } else {
+        pauseBtn.style.display = supportsDownloadPauseResume ? "" : "none";
+        pauseBtn.textContent = downloadPaused ? "Resume" : "Pause";
+        pauseBtn.disabled = !supportsDownloadPauseResume || downloadStage !== "downloading" || downloadMode !== "file";
+      }
     }
     if (cancelBtn) {
-      cancelBtn.textContent = downloadStage === "ready" ? "Close" : "Cancel";
-      cancelBtn.disabled = downloadMode === "update" && downloadStage === "downloading";
+      if (downloadMode === "update") {
+        cancelBtn.textContent = downloadStage === "ready" ? "Restart now" : "Hide";
+        cancelBtn.disabled = false;
+      } else {
+        const shouldHideOnly = downloadStage !== "ready" && downloadMode === "file" && !supportsDownloadCancel;
+        cancelBtn.textContent = downloadStage === "ready" ? "Close" : (shouldHideOnly ? "Hide" : "Cancel");
+        cancelBtn.disabled = false;
+      }
     }
     if (openBtn) {
-      openBtn.disabled = !activeDownloadPath;
+      if (downloadMode === "update") {
+        openBtn.style.display = downloadStage === "ready" ? "" : "none";
+        openBtn.textContent = "Later";
+        openBtn.disabled = false;
+      } else {
+        openBtn.style.display = "";
+        openBtn.textContent = "Open folder";
+        openBtn.disabled = !activeDownloadPath;
+      }
     }
+  }
+
+  async function installDownloadedUpdate() {
+    if (!api) return false;
+    const result = await api.action("update:install");
+    if (result?.error) {
+      addActivity({ type: "error", title: result.error });
+      showErrorToast(result.error);
+      return false;
+    }
+    return true;
   }
 
   function replaceText() {
@@ -7277,6 +7422,25 @@ Mongolian: {
     menuFocusedIndex = -1;
   }
 
+  function shouldStartMenubarDrag(target) {
+    if (!api || !(target instanceof Element)) return false;
+    return !target.closest(".window-controls, .menu-dropdown");
+  }
+
+  function clearMenubarDragState(pointerId) {
+    if (!menubarDragState) return;
+    if (typeof pointerId === "number" && menubarDragState.pointerId !== pointerId) return;
+    menubarDragState = null;
+  }
+
+  async function startMenubarDrag() {
+    if (!api) return;
+    try {
+      await api.action("window:startDragging");
+    } catch (_error) {
+    }
+  }
+
   function handleMenubarKeydown(event) {
     if (menuFocusedIndex === -1 && menuOpenIndex === -1) return false;
     const openMenuEl = menuOpenIndex !== -1 ? menuItems[menuOpenIndex] : null;
@@ -7603,7 +7767,13 @@ Mongolian: {
       closeSpellMenu();
     }
     if (action === "add") {
-      await api.action("spell:add", { word: target.dataset.value });
+      const result = await api.action("spell:add", { word: target.dataset.value });
+      if (result?.unsupported) {
+        showNotification(result.error || t("toast.spellAddUnavailable"));
+      } else if (result?.error) {
+        showErrorToast(result.error);
+        addActivity({ type: "error", title: result.error });
+      }
       closeSpellMenu();
     }
   });
@@ -7805,8 +7975,8 @@ Mongolian: {
       const enabled = settingsAutoUpdateToggle.checked;
       localStorage.setItem("lp:autoUpdate", enabled ? "1" : "0");
       settingsAutoUpdateToggle.setAttribute("aria-checked", enabled ? "true" : "false");
-      if (enabled && api) {
-        await api.action("update:check");
+      if (enabled) {
+        await requestUpdateCheck();
       }
     });
   }
@@ -7951,9 +8121,7 @@ Mongolian: {
   });
   aboutClose?.addEventListener("click", () => closeAboutModal());
   aboutUpdates?.addEventListener("click", async () => {
-    if (!api) return;
-    await api.action("update:check");
-    showNotification(t("toast.checkingUpdates"));
+    await requestUpdateCheck({ manual: true });
   });
   welcomeButtons.forEach((button) => {
     button.addEventListener("click", async () => {
@@ -8163,27 +8331,68 @@ Mongolian: {
       if (!action || !api || !activeDownloadId) return;
       if (action === "pause") {
         if (downloadMode !== "file") return;
-        if (downloadPaused) {
-          await api.action("download:resume", { id: activeDownloadId });
-          downloadPaused = false;
-        } else {
-          await api.action("download:pause", { id: activeDownloadId });
-          downloadPaused = true;
+        if (!supportsDownloadPauseResume) {
+          showNotification(t("toast.downloadControlsUnavailable"));
+          return;
         }
+        let result;
+        if (downloadPaused) {
+          result = await api.action("download:resume", { id: activeDownloadId });
+        } else {
+          result = await api.action("download:pause", { id: activeDownloadId });
+        }
+        if (result?.unsupported) {
+          showNotification(result.error || t("toast.downloadControlsUnavailable"));
+          return;
+        }
+        if (result?.error) {
+          showErrorToast(result.error);
+          addActivity({ type: "error", title: result.error });
+          return;
+        }
+        downloadPaused = !downloadPaused;
         updateDownloadButtons();
       }
       if (action === "cancel") {
+        if (downloadMode === "update") {
+          if (downloadStage === "ready") {
+            await installDownloadedUpdate();
+          } else {
+            closeDownloadOverlay();
+            showNotification(t("toast.updateContinuesBackground"));
+          }
+          return;
+        }
         if (downloadStage === "ready") {
           closeDownloadOverlay();
         } else {
           if (downloadMode === "file") {
-            await api.action("download:cancel", { id: activeDownloadId });
+            if (!supportsDownloadCancel) {
+              closeDownloadOverlay();
+              showNotification(t("toast.downloadContinuesBackground"));
+              return;
+            }
+            const result = await api.action("download:cancel", { id: activeDownloadId });
+            if (result?.unsupported) {
+              closeDownloadOverlay();
+              showNotification(result.error || t("toast.downloadContinuesBackground"));
+              return;
+            }
+            if (result?.error) {
+              showErrorToast(result.error);
+              addActivity({ type: "error", title: result.error });
+              return;
+            }
           }
           closeDownloadOverlay();
         }
       }
-      if (action === "open" && activeDownloadPath) {
-        if (downloadMode === "file") {
+      if (action === "open") {
+        if (downloadMode === "update") {
+          closeDownloadOverlay();
+          return;
+        }
+        if (downloadMode === "file" && activeDownloadPath) {
           await api.action("download:openFolder", { filePath: activeDownloadPath });
         }
       }
@@ -8359,12 +8568,14 @@ Mongolian: {
   });
 
   api?.onUpdateAvailable?.((payload) => {
+    const manualCheck = manualUpdateCheckPending;
+    manualUpdateCheckPending = false;
     const version = payload?.version || "";
     const skipped = localStorage.getItem("lp:skippedUpdateVersion");
-    if (version && skipped === version) {
+    if (version && skipped === version && !manualCheck) {
       return;
     }
-    if (!updateNotificationsEnabled) {
+    if (!updateNotificationsEnabled && !manualCheck) {
       return;
     }
     addActivity({
@@ -8378,6 +8589,14 @@ Mongolian: {
       ]
     });
     openUpdateModal(version);
+  });
+
+  api?.onUpdateNone?.(() => {
+    const manualCheck = manualUpdateCheckPending;
+    manualUpdateCheckPending = false;
+    if (manualCheck) {
+      showNotification("You are already on the latest version.");
+    }
   });
 
   api?.onUpdateProgress?.((payload) => {
@@ -8402,20 +8621,18 @@ Mongolian: {
   api?.onUpdateDownloaded?.(() => {
     if (downloadMode !== "update") return;
     if (updateNotificationsEnabled) {
-      addActivity({
-        type: "update",
-        title: "Update downloaded",
-        actions: [
-          {
-            label: "Restart now",
-            handler: async () => {
-              if (api) {
-                await api.action("update:install");
+        addActivity({
+          type: "update",
+          title: "Update downloaded",
+          actions: [
+            {
+              label: "Restart now",
+              handler: async () => {
+                await installDownloadedUpdate();
               }
             }
-          }
-        ]
-      });
+          ]
+        });
     }
     setDownloadStage("verifying");
     if (downloadStats) {
@@ -8441,12 +8658,23 @@ Mongolian: {
       if (updateNotificationsEnabled) {
         showNotification(t("toast.updateReadyRestart"));
       }
-      await api.action("update:install");
     }, 700);
   });
 
   api?.onUpdateError?.((payload) => {
-    if (downloadMode !== "update") return;
+    const manualCheck = manualUpdateCheckPending;
+    if (downloadMode !== "update") {
+      manualUpdateCheckPending = false;
+      if (!manualCheck) return;
+      const message = payload?.message || t("toast.updateFailed");
+      addActivity({
+        type: "error",
+        title: message
+      });
+      showErrorToast(message);
+      return;
+    }
+    manualUpdateCheckPending = false;
     if (updateNotificationsEnabled) {
       addActivity({
         type: "error",
@@ -8463,7 +8691,7 @@ Mongolian: {
   });
 
   api?.onSpellContext?.((payload) => {
-    if (!payload) return;
+    if (!supportsSpellContext || !payload) return;
     openSpellMenu(payload);
   });
 
@@ -8667,7 +8895,47 @@ Mongolian: {
     syncWindowControls();
   });
 
+  menubar?.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) {
+      clearMenubarDragState();
+      return;
+    }
+    if (!shouldStartMenubarDrag(event.target)) {
+      clearMenubarDragState();
+      return;
+    }
+    menubarDragState = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY
+    };
+  });
+
+  window.addEventListener("pointermove", (event) => {
+    if (!menubarDragState || event.pointerId !== menubarDragState.pointerId) return;
+    const distance = Math.hypot(event.clientX - menubarDragState.x, event.clientY - menubarDragState.y);
+    if (distance < MENUBAR_DRAG_THRESHOLD) return;
+    clearMenubarDragState(event.pointerId);
+    menubarClickSuppressUntil = Date.now() + MENUBAR_DRAG_SUPPRESS_MS;
+    closeMenus();
+    void startMenubarDrag();
+  });
+
+  window.addEventListener("pointerup", (event) => {
+    clearMenubarDragState(event.pointerId);
+  });
+
+  window.addEventListener("pointercancel", (event) => {
+    clearMenubarDragState(event.pointerId);
+  });
+
   menubar?.addEventListener("click", (event) => {
+    if (Date.now() < menubarClickSuppressUntil) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeMenus();
+      return;
+    }
     const windowActionBtn = event.target.closest('.window-controls [data-action]');
     if (windowActionBtn) {
       runAction(windowActionBtn.dataset.action);
@@ -9176,7 +9444,7 @@ Mongolian: {
     } else {
       body += "<p>Welcome to the latest update of LucidPad.</p><p>Release notes are not available for this version.</p>";
     }
-    body += "<p>Thanks for using LucidPad â¤ï¸</p>";
+    body += "<p>Thanks for using LucidPad ❤️</p>";
     const tab = createTab(title, body, null);
     setActiveTab(tab.id);
     setTabDirty(tab, false);
@@ -9286,7 +9554,7 @@ Mongolian: {
   const autoUpdateSetting = localStorage.getItem("lp:autoUpdate");
   const shouldAutoUpdate = autoUpdateSetting === null || autoUpdateSetting === "1";
   if (shouldAutoUpdate) {
-    api?.action("update:check");
+    requestUpdateCheck();
   }
 })();
 

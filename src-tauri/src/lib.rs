@@ -1,8 +1,15 @@
 use rfd::FileDialog;
 use serde_json::{json, Value};
+use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc, Mutex,
+};
+use tauri::webview::DownloadEvent;
+use tauri::{Emitter, WebviewWindowBuilder};
 
 fn payload_str(payload: &Option<Value>, key: &str) -> String {
     payload
@@ -109,6 +116,68 @@ fn save_export_dialog(
         dialog = dialog.set_file_name(name);
     }
     dialog.save_file()
+}
+
+fn wrap_plain_text_lines(content: &str, max_chars: usize) -> Vec<String> {
+    let normalized = content.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = Vec::new();
+
+    for raw in normalized.split('\n') {
+        if raw.is_empty() {
+            lines.push(String::new());
+            continue;
+        }
+
+        let chars: Vec<char> = raw.chars().collect();
+        if chars.len() <= max_chars {
+            lines.push(raw.to_string());
+            continue;
+        }
+
+        let mut start = 0usize;
+        while start < chars.len() {
+            let end = (start + max_chars).min(chars.len());
+            let chunk: String = chars[start..end].iter().collect();
+            lines.push(chunk);
+            start = end;
+        }
+    }
+
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+
+    lines
+}
+
+fn export_text_as_pdf(file_path: &Path, content: &str) -> Result<(), String> {
+    use printpdf::{BuiltinFont, Mm, PdfDocument};
+    use std::fs::File;
+    use std::io::BufWriter;
+
+    let (doc, mut page, mut layer) =
+        PdfDocument::new("LucidPad Export", Mm(210.0), Mm(297.0), "Layer 1");
+    let font = doc
+        .add_builtin_font(BuiltinFont::Helvetica)
+        .map_err(|error| format!("Failed to prepare PDF font: {error}"))?;
+    let mut y = 287.0f64;
+    let line_height = 5.5f64;
+
+    for line in wrap_plain_text_lines(content, 110) {
+        if y < 15.0 {
+            let (next_page, next_layer) = doc.add_page(Mm(210.0), Mm(297.0), "Layer");
+            page = next_page;
+            layer = next_layer;
+            y = 287.0;
+        }
+        let current = doc.get_page(page).get_layer(layer);
+        current.use_text(line, 11.0, Mm(10.0), Mm(y), &font);
+        y -= line_height;
+    }
+
+    let file = File::create(file_path).map_err(|error| format!("Failed to create PDF: {error}"))?;
+    doc.save(&mut BufWriter::new(file))
+        .map_err(|error| format!("Failed to write PDF: {error}"))
 }
 
 #[tauri::command]
@@ -238,10 +307,31 @@ fn lp_action(name: String, payload: Option<Value>) -> Value {
             }
             json!({ "exists": Path::new(file_path.as_str()).exists() })
         }
-        "file:exportPdf" => json!({
-          "canceled": false,
-          "error": "PDF export is not implemented in the Tauri build yet."
-        }),
+        "file:exportPdf" => {
+            let folder = payload_str(&payload, "defaultFolder");
+            let content = payload_str(&payload, "content");
+            let default_path = resolve_export_default_path("LucidPad.pdf", folder.as_str());
+            let Some(mut file_path) =
+                save_export_dialog("Export PDF", default_path.as_path(), "PDF", &["pdf"])
+            else {
+                return json!({ "canceled": true });
+            };
+            let has_pdf_ext = file_path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("pdf"))
+                .unwrap_or(false);
+            if !has_pdf_ext {
+                file_path.set_extension("pdf");
+            }
+            match export_text_as_pdf(file_path.as_path(), content.as_str()) {
+                Ok(_) => json!({
+                  "canceled": false,
+                  "filePath": file_path.to_string_lossy().to_string()
+                }),
+                Err(error) => json!({ "canceled": false, "error": error }),
+            }
+        }
         "file:exportTxt" | "file:exportHtml" => {
             let folder = payload_str(&payload, "defaultFolder");
             let content = payload_str(&payload, "content");
@@ -289,6 +379,143 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            if let Some(main_window_config) = app
+                .config()
+                .app
+                .windows
+                .iter()
+                .find(|window| window.label == "main")
+                .cloned()
+            {
+                let download_counter = Arc::new(AtomicU64::new(1));
+                let pending_downloads: Arc<
+                    Mutex<HashMap<String, VecDeque<(String, String, String)>>>,
+                > = Arc::new(Mutex::new(HashMap::new()));
+
+                let pending_downloads_for_handler = pending_downloads.clone();
+                let download_counter_for_handler = download_counter.clone();
+
+                WebviewWindowBuilder::from_config(app, &main_window_config)?
+                    .on_download(move |webview, event| {
+                        match event {
+                            DownloadEvent::Requested { url, destination } => {
+                                let id = format!(
+                                    "dl-{}",
+                                    download_counter_for_handler.fetch_add(1, Ordering::Relaxed)
+                                );
+                                let filename = destination
+                                    .file_name()
+                                    .and_then(|name| name.to_str())
+                                    .unwrap_or("Download")
+                                    .to_string();
+                                let file_path = destination.to_string_lossy().to_string();
+                                let url_key = url.to_string();
+
+                                if let Ok(mut pending) = pending_downloads_for_handler.lock() {
+                                    pending.entry(url_key).or_default().push_back((
+                                        id.clone(),
+                                        filename.clone(),
+                                        file_path.clone(),
+                                    ));
+                                }
+
+                                let _ = webview.emit(
+                                    "download:started",
+                                    json!({
+                                      "id": id,
+                                      "filename": filename,
+                                      "totalBytes": 0
+                                    }),
+                                );
+                                let _ = webview.emit(
+                                    "download:progress",
+                                    json!({
+                                      "id": id,
+                                      "receivedBytes": 0,
+                                      "totalBytes": 0,
+                                      "progress": 0.0,
+                                      "speed": 0.0
+                                    }),
+                                );
+                            }
+                            DownloadEvent::Finished { url, path, success } => {
+                                let url_key = url.to_string();
+                                let mut fallback = (
+                                    format!(
+                                        "dl-{}",
+                                        download_counter_for_handler
+                                            .fetch_add(1, Ordering::Relaxed)
+                                    ),
+                                    "Download".to_string(),
+                                    String::new(),
+                                );
+
+                                if let Ok(mut pending) = pending_downloads_for_handler.lock() {
+                                    let mut remove_url_entry = false;
+                                    if let Some(queue) = pending.get_mut(&url_key) {
+                                        if let Some(entry) = queue.pop_front() {
+                                            fallback = entry;
+                                        }
+                                        remove_url_entry = queue.is_empty();
+                                    }
+                                    if remove_url_entry {
+                                        pending.remove(&url_key);
+                                    }
+                                }
+
+                                let id = fallback.0;
+                                let filename = fallback.1;
+                                let resolved_path = path
+                                    .as_ref()
+                                    .map(|value| value.to_string_lossy().to_string())
+                                    .filter(|value| !value.trim().is_empty())
+                                    .unwrap_or(fallback.2);
+
+                                if success {
+                                    let total_bytes = if resolved_path.is_empty() {
+                                        0
+                                    } else {
+                                        fs::metadata(resolved_path.as_str())
+                                            .map(|metadata| metadata.len())
+                                            .unwrap_or(0)
+                                    };
+
+                                    let _ = webview.emit(
+                                        "download:progress",
+                                        json!({
+                                          "id": id,
+                                          "receivedBytes": total_bytes,
+                                          "totalBytes": total_bytes,
+                                          "progress": if total_bytes > 0 { 1.0 } else { 0.0 },
+                                          "speed": 0.0
+                                        }),
+                                    );
+                                    let _ = webview.emit(
+                                        "download:done",
+                                        json!({
+                                          "id": id,
+                                          "filename": filename,
+                                          "filePath": resolved_path
+                                        }),
+                                    );
+                                } else {
+                                    let _ = webview.emit(
+                                        "download:error",
+                                        json!({
+                                          "id": id,
+                                          "message": "Download failed."
+                                        }),
+                                    );
+                                }
+                            }
+                            _ => {}
+                        }
+                        true
+                    })
+                    .build()?;
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())
